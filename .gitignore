@@ -1,2 +1,6 @@
 /target
 /out
+/packages
+/ignore
+/.cache
+.DS_Store

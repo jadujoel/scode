@@ -1,15 +1,15 @@
 
 main:
-	cargo run -- --indir="../sounds/src/packages" --outfile="out/foo/sounds.txt"
+	cargo run -- --indir="packages"
 
 prod:
-	cargo run --release -- --indir="../sounds/src/packages" --outfile="out/foo/sounds.txt"
+	cargo run --release -- --indir="packages"
 
 build:
 	cargo build --release
 
 run:
-	./target/release/ecas-encoder --indir="../sounds/src/packages" --outfile="out/foo/sounds.txt"
+	./target/release/ecas-encoder --indir="packages"
 
 clean:
-	rm -rf out
+	rm -rf out .cache
