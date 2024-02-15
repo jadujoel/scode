@@ -3,4 +3,5 @@
 /packages
 /ignore
 /.cache
+/encoded
 .DS_Store
