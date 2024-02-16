@@ -26,8 +26,15 @@ jobs:
     - name: codesign
       run: bash codesign.sh
       env:
-        P2_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        API_KEY_ID: ${{ secrets.API_KEY_ID }}
+        API_KEY_ISSUER_ID: ${{ secrets.API_KEY_ISSUER_ID }}
+        APP_NAME: ${{ secrets.APP_NAME }}
+        BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
+        DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}
         P2_BASE64: ${{ secrets.P12_BASE64 }}
+        P2_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        TEAM_ID: ${{ secrets.TEAM_ID }}
+        YOUR_NAME: ${{ secrets. YOUR_NAME }}
 
     - uses: actions/upload-artifact@v4
       with:
