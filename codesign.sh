@@ -38,8 +38,7 @@
 # Step2:
 # Generate an API key from the App Store Connect portal.
 # You'll need the Key ID, Issuer ID, and the API Key file (.p8 file).
-# https://appstoreconnect.apple.com/login
-# https://appstoreconnect.apple.com/access/integrations/api
+# Get it at: https://appstoreconnect.apple.com/access/integrations/api
 # then download the key to <this-repo>/.codesign/AuthKey_<SOME_STRING>.p8
 
 # Step3:
@@ -47,10 +46,10 @@
 # TEAM_ID=YOUR_TEAM_ID
 # APP_NAME=YOUR_APP_NAME
 # BUNDLE_ID=YOUR_BUNDLE_ID
-# DEVELOPER_ID=Developer ID Application: YOUR_NAME (TEAM_ID)
+# DEVELOPER_ID=YOUR_DEVELOPER_ID
 # YOUR_NAME=YOUR_NAME
-# API_KEY_ID
-# API_KEY_ISSUER_ID
+# API_KEY_ID=YOUR_API_KEY
+# API_KEY_ISSUER_ID=YOUR_API_KEY
 # P12_PASSWORD=YOUR_P12_PASSWORD
 
 # Step4
@@ -58,7 +57,7 @@
 # this will update the .env file with the base64 encoded .p12 and .p8 files
 
 # Step5
-# run bash codesign.sh
+# run `bash codesign.sh``
 # this will codesign the app and create a .app bundle
 
 # Step6
@@ -77,9 +76,9 @@ if [ "$1" == "--setup" ]; then
     exit 1
   fi
   # Check if P12_BASE64 variable exists in the .env file silently
-  if [ -z $P12_BASE64 ]; then
+  if [ -z "$P12_BASE64" ]; then
     echo "P12_BASE64 variable not found in $ENV_FILE. Adding it now."
-    cd .codesign
+    cd .codesign || exit 1
     base64 < developerID_application.p12 > developerID_application.p12.base64
     cd ..
     # Path to your base64-encoded .p12 file
@@ -91,10 +90,10 @@ if [ "$1" == "--setup" ]; then
   else
     echo "P12_BASE64 variable already exists in $ENV_FILE."
   fi
-  if [ -z $API_KEY_BASE64 ]; then
+  if [ -z "$API_KEY_BASE64" ]; then
     echo "API_KEY_BASE64 variable not found in $ENV_FILE. Adding it now."
-    cd .codesign
-    base64 < AuthKey_$API_KEY_ID.p8 > AuthKey_$API_KEY_ID.p8.base64
+    cd .codesign || exit 1
+    base64 < "AuthKey_$API_KEY_ID.p8" > "AuthKey_$API_KEY_ID.p8.base64"
     cd ..
     # Path to your base64-encoded .p12 file
     API_KEY_BASE64_FILE=".codesign/AuthKey_$API_KEY_ID.p8.base64"
@@ -161,7 +160,7 @@ fi
 mkdir -p .codesign
 
 INPUT_PATH="target/release/$APP_NAME"
-if [ ! -f $INPUT_PATH ]; then
+if [ ! -f "$INPUT_PATH" ]; then
   echo "The file $INPUT_PATH does not exist"
   exit 1
 fi
@@ -184,15 +183,15 @@ EOF
 
 ## if api key file doesnt exist, create it from env variable
 API_KEY_PATH=".codesign/AuthKey_$API_KEY_ID.p8"
-if [ ! -f $API_KEY_PATH ]; then
+if [ ! -f "$API_KEY_PATH" ]; then
   echo "Creating API key file from base64..."
-  echo $API_KEY_BASE64 | base64 --decode > $API_KEY_PATH
+  echo "$API_KEY_BASE64" | base64 --decode > "$API_KEY_PATH"
 fi
 
 P12_FILE_PATH=.codesign/developerID_application.p12
 if [ ! -f $P12_FILE_PATH ]; then
   echo "Creating .p12 file from base64..."
-  echo $P12_BASE64 | base64 --decode > $P12_FILE_PATH
+  echo "$P12_BASE64" | base64 --decode > $P12_FILE_PATH
 fi
 
 KEYCHAIN_PATH=~/Library/Keychains/login.keychain-db
@@ -289,7 +288,7 @@ printf "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 mkdir -p scode.app/Contents/_CodeSignature
 
 echo "Codesigning the app bundle..."
-codesign --deep -s "Developer ID Application: ${YOUR_NAME} (${TEAM_ID})" scode.app
+codesign --deep -s "$DEVELOPER_ID" scode.app
 
 echo "Stapling the app..."
 xcrun stapler staple scode.app
