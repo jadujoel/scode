@@ -222,15 +222,6 @@ echo "Signing the application..."
 DEVELOPER_ID="Developer ID Application: $YOUR_NAME ($TEAM_ID)"
 codesign --sign "$DEVELOPER_ID" --entitlements "$ENTITLEMENTS" --options runtime --timestamp --force "$INPUT_PATH"
 
-# Step 4: Create a ZIP archive for notarization
-echo "Creating a ZIP archive for notarization..."
-OUTPUT_PATH="target/release/$APP_NAME.zip"
-ditto -c -k --keepParent "$INPUT_PATH" "$OUTPUT_PATH"
-
-# Step 5: Submit the app for notarization using notarytool
-echo "Uploading the app for notarization..."
-xcrun notarytool submit "$OUTPUT_PATH" --key-id "$API_KEY_ID" --issuer "$API_KEY_ISSUER_ID" --key "$API_KEY_PATH" --wait
-
 # Note: 'notarytool submit' with '--wait' option waits for notarization to complete.
 # If notarization is successful, the tool will output a success message.
 # If there is an error, it will provide details on the failure.
@@ -288,10 +279,22 @@ printf "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 mkdir -p scode.app/Contents/_CodeSignature
 
 echo "Codesigning the app bundle..."
-codesign --deep -s "$DEVELOPER_ID" scode.app
+INPUT_PATH="$APP_NAME.app"
+# codesign --deep -s "$DEVELOPER_ID" "$INPUT_PATH"
+codesign --deep --sign "$DEVELOPER_ID" --entitlements "$ENTITLEMENTS" --options runtime --timestamp --force "$INPUT_PATH"
+
+
+# Step 4: Create a ZIP archive for notarization
+echo "Creating a ZIP archive for notarization..."
+OUTPUT_PATH="target/release/$APP_NAME.zip"
+ditto -c -k --keepParent "$INPUT_PATH" "$OUTPUT_PATH"
+
+# Step 5: Submit the app for notarization using notarytool
+echo "Uploading the app for notarization..."
+xcrun notarytool submit "$OUTPUT_PATH" --key-id "$API_KEY_ID" --issuer "$API_KEY_ISSUER_ID" --key "$API_KEY_PATH" --wait
 
 echo "Stapling the app..."
-xcrun stapler staple scode.app
+xcrun stapler staple "$INPUT_PATH"
 
 echo "Codesigning complete!"
 exit 0
