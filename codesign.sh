@@ -65,46 +65,48 @@
 
 ENV_FILE=".env"
 
+mkdir -p .codesign
+
 if [ -f .env ]; then
   source .env
 fi
+echo "Setting up codesigning"
+if [ -z "$P12_PASSWORD" ]; then
+  echo "P12_PASSWORD is not set"
+  exit 1
+fi
+# Check if P12_BASE64 variable exists in the .env file silently
+if [ -z "$P12_BASE64" ]; then
+  echo "P12_BASE64 variable not found in $ENV_FILE. Adding it now."
+  cd .codesign || exit 1
+  base64 < developerID_application.p12 > developerID_application.p12.base64
+  cd ..
+  # Path to your base64-encoded .p12 file
+  P12_BASE64_FILE=".codesign/developerID_application.p12.base64"
+  # Read the content of the base64-encoded .p12 file
+  P12_CONTENT=$(cat "$P12_BASE64_FILE")
+  # Append the P12_BASE64 variable and its content to the .env file
+  echo "P12_BASE64=\"$P12_CONTENT\"" >> "$ENV_FILE"
+else
+  echo "P12_BASE64 variable already exists in $ENV_FILE."
+fi
+if [ -z "$API_KEY_BASE64" ]; then
+  echo "API_KEY_BASE64 variable not found in $ENV_FILE. Adding it now."
+  cd .codesign || exit 1
+  base64 < "AuthKey_$API_KEY_ID.p8" > "AuthKey_$API_KEY_ID.p8.base64"
+  cd ..
+  # Path to your base64-encoded .p12 file
+  API_KEY_BASE64_FILE=".codesign/AuthKey_$API_KEY_ID.p8.base64"
+  # Read the content of the base64-encoded .p12 file
+  API_KEY_CONTENT=$(cat "$API_KEY_BASE64_FILE")
+  # Append the P12_BASE64 variable and its content to the .env file
+  echo "API_KEY_BASE64=\"$API_KEY_CONTENT\"" >> "$ENV_FILE"
+else
+  echo "API_KEY_BASE64 variable already exists in $ENV_FILE."
+fi
 
-if [ "$1" == "--setup" ]; then
-  echo "Setting up codesigning"
-  if [ -z "$P12_PASSWORD" ]; then
-    echo "P12_PASSWORD is not set"
-    exit 1
-  fi
-  # Check if P12_BASE64 variable exists in the .env file silently
-  if [ -z "$P12_BASE64" ]; then
-    echo "P12_BASE64 variable not found in $ENV_FILE. Adding it now."
-    cd .codesign || exit 1
-    base64 < developerID_application.p12 > developerID_application.p12.base64
-    cd ..
-    # Path to your base64-encoded .p12 file
-    P12_BASE64_FILE=".codesign/developerID_application.p12.base64"
-    # Read the content of the base64-encoded .p12 file
-    P12_CONTENT=$(cat "$P12_BASE64_FILE")
-    # Append the P12_BASE64 variable and its content to the .env file
-    echo "P12_BASE64=\"$P12_CONTENT\"" >> "$ENV_FILE"
-  else
-    echo "P12_BASE64 variable already exists in $ENV_FILE."
-  fi
-  if [ -z "$API_KEY_BASE64" ]; then
-    echo "API_KEY_BASE64 variable not found in $ENV_FILE. Adding it now."
-    cd .codesign || exit 1
-    base64 < "AuthKey_$API_KEY_ID.p8" > "AuthKey_$API_KEY_ID.p8.base64"
-    cd ..
-    # Path to your base64-encoded .p12 file
-    API_KEY_BASE64_FILE=".codesign/AuthKey_$API_KEY_ID.p8.base64"
-    # Read the content of the base64-encoded .p12 file
-    API_KEY_CONTENT=$(cat "$API_KEY_BASE64_FILE")
-    # Append the P12_BASE64 variable and its content to the .env file
-    echo "API_KEY_BASE64=\"$API_KEY_CONTENT\"" >> "$ENV_FILE"
-  else
-    echo "API_KEY_BASE64 variable already exists in $ENV_FILE."
-  fi
-  exit 0
+if [ -f .env ]; then
+  source .env
 fi
 
 if [ -z "$TEAM_ID" ]; then
@@ -157,15 +159,12 @@ if [ -z "$API_KEY_BASE64" ]; then
     exit 1
 fi
 
-mkdir -p .codesign
-
 INPUT_PATH="target/release/$APP_NAME"
 if [ ! -f "$INPUT_PATH" ]; then
   echo "The file $INPUT_PATH does not exist"
   exit 1
 fi
 
-# Step: Create an Entitlements file
 echo "Creating an Entitlements file..."
 ENTITLEMENTS=".codesign/entitlements.plist"
 touch .env
@@ -197,27 +196,21 @@ fi
 KEYCHAIN_PATH=~/Library/Keychains/login.keychain-db
 
 echo "Creating a temporary keychain..."
-# Create a temporary keychain
 security create-keychain -p "" temp.keychain-db
 security default-keychain -s temp.keychain-db
 
-# Unlock the keychain
 echo "Unlocking the keychain..."
 security unlock-keychain -p "" temp.keychain-db
 
-# Import the .p12 file into the temporary keychain
 echo "Importing the .p12 file into the temporary keychain..."
 security import $P12_FILE_PATH -k temp.keychain-db -P "$P12_PASSWORD" -T /usr/bin/codesign
 
-# Add the temporary keychain to the search list
 echo "Adding the temporary keychain to the search list..."
 security list-keychains -s temp.keychain-db $KEYCHAIN_PATH
 
-# Set key partition list to allow codesign to access the keychain
 echo "Setting key partition list to allow codesign to access the keychain..."
 security set-key-partition-list -S apple-tool:,apple: -s -k "" temp.keychain-db
 
-# Step 3: Sign your application
 echo "Signing the application..."
 DEVELOPER_ID="Developer ID Application: $YOUR_NAME ($TEAM_ID)"
 codesign --sign "$DEVELOPER_ID" --entitlements "$ENTITLEMENTS" --options runtime --timestamp --force "$INPUT_PATH"
@@ -225,14 +218,6 @@ codesign --sign "$DEVELOPER_ID" --entitlements "$ENTITLEMENTS" --options runtime
 # Note: 'notarytool submit' with '--wait' option waits for notarization to complete.
 # If notarization is successful, the tool will output a success message.
 # If there is an error, it will provide details on the failure.
-
-# echo "Stapling the notarization ticket to the ZIP archive..."
-# # Step 6: Staple the notarization ticket to the ZIP archive
-# xcrun stapler staple "$OUTPUT_PATH"
-
-# Step 7: Verify the signature and notarization
-# codesign --verify --deep --strict --verbose=2 "$INPUT_PATH"
-# spctl --assess --type execute --verbose --ignore-cache --no-cache "$INPUT_PATH"
 
 echo "Creating an app bundle..."
 
@@ -276,25 +261,22 @@ printf "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 </plist>
 " "${APP_NAME}" "${BUNDLE_ID}" "${APP_NAME}" "${BUNDLE_VERSION}" > scode.app/Contents/Info.plist
 
-mkdir -p scode.app/Contents/_CodeSignature
-
 echo "Codesigning the app bundle..."
 INPUT_PATH="$APP_NAME.app"
-# codesign --deep -s "$DEVELOPER_ID" "$INPUT_PATH"
 codesign --deep --sign "$DEVELOPER_ID" --entitlements "$ENTITLEMENTS" --options runtime --timestamp --force "$INPUT_PATH"
 
-
-# Step 4: Create a ZIP archive for notarization
 echo "Creating a ZIP archive for notarization..."
 OUTPUT_PATH="target/release/$APP_NAME.zip"
 ditto -c -k --keepParent "$INPUT_PATH" "$OUTPUT_PATH"
 
-# Step 5: Submit the app for notarization using notarytool
 echo "Uploading the app for notarization..."
 xcrun notarytool submit "$OUTPUT_PATH" --key-id "$API_KEY_ID" --issuer "$API_KEY_ISSUER_ID" --key "$API_KEY_PATH" --wait
 
 echo "Stapling the app..."
 xcrun stapler staple "$INPUT_PATH"
+
+echo "Removing the temporary keychain..."
+security delete-keychain temp.keychain-db
 
 echo "Codesigning complete!"
 exit 0
