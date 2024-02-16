@@ -481,9 +481,9 @@ fn main() -> io::Result<()> {
 
     let needs_conversion = sound_files_info
         .iter()
-        .any(|info| info.sample_rate != 48000);
+        .any(|info| info.sample_rate != 48000 && info.sample_rate != 44100);
     for info in &sound_files_info {
-        if info.sample_rate != 48000 {
+        if info.sample_rate != 48000 && info.sample_rate != 44100 {
             eprintln!(
                 "Source file is not 48kHz: {} at {} hz",
                 info.path, info.sample_rate
