@@ -2,7 +2,7 @@
 extern crate lazy_static;
 
 use std::{
-    collections::{hash_map::DefaultHasher, HashSet},
+    collections::{hash_map::DefaultHasher, HashMap, HashSet},
     env,
     fs::{self, File},
     hash::{Hash, Hasher},
@@ -21,6 +21,12 @@ use walkdir::WalkDir;
 
 mod wave;
 use wave::WaveData;
+
+// for gzipping the json file
+use flate2::write::GzEncoder;
+use flate2::Compression;
+// use humansize::{format_size, DECIMAL};
+use serde_json::{Error, Value};
 
 lazy_static! {
     static ref STDERR: Arc<Mutex<StandardStream>> =
@@ -64,58 +70,117 @@ fn write_sound_info_to_json(
     output_file: &str,
     sound_files_info: &[SoundFileInfo],
 ) -> io::Result<()> {
-    println!("Writing sound info to {output_file}");
-
-    // Write TypeScript file with sound file information
     let file = File::create(output_file)?;
     let mut writer = BufWriter::new(file);
 
-    writeln!(writer, "[")?;
-    for (index, info) in sound_files_info.iter().enumerate() {
-        // Write sound information
-        write!(
-            writer,
-            "  {{ \"pkg\": \"{}\", \"lang\": \"{}\", \"nc\": {}, \"br\": {}, \"name\": \"{}\", \"of\": \"{}\", \"hash\": {}, \"ns\": {}, \"dur\": {}",
-            info.package,
-            info.lang,
-            info.num_channels,
-            info.bitrate,
-            info.name,
-            info.outfile,
-            info.hash,
-            info.num_samples,
-            info.duration,
-        )?;
+    let mut groups: HashMap<String, Vec<&SoundFileInfo>> = HashMap::new();
 
-        // Check for duplicates
-        // let duplicates: Vec<&SoundFileInfo> = sound_files_info
-        //     .iter()
-        //     .filter(|&other| other.hash == info.hash && other.path != info.path)
-        //     .collect();
+    // Group the sound files by their package
+    for info in sound_files_info {
+        groups.entry(info.package.clone()).or_default().push(info);
+    }
 
-        // // If duplicates exist, add duplicates field
-        // if !duplicates.is_empty() {
-        //     write!(writer, ", \"duplicates\": [")?;
-        //     for (i, dup) in duplicates.iter().enumerate() {
-        //         if i > 0 {
-        //             write!(writer, ", ")?;
-        //         }
-        //         write!(writer, "\"{}\"", dup.path)?;
-        //     }
-        //     write!(writer, "]")?;
-        // }
-        // Close the sound entry
+    writeln!(writer, "{{")?;
+    for (index, package) in groups.iter().enumerate() {
+        write!(writer, "\"{}\": [", package.0)?;
+        for (index, info) in package.1.iter().enumerate() {
+            if info.lang == "none" {
+                // If lang is "none", skip the lang field
+                write!(
+                    writer,
+                    "\n  [\"{}\", \"{}\", {}]",
+                    info.name,
+                    info.outfile.replace(".webm", ""),
+                    info.num_samples,
+                )?;
+            } else {
+                // If lang is not "none", include it in the JSON
+                write!(
+                    writer,
+                    "\n  [\"{}\", \"{}\", {}, \"{}\"]",
+                    info.name,
+                    info.outfile.replace(".webm", ""),
+                    info.num_samples,
+                    info.lang,
+                )?;
+            }
+
+            // Comma between items, not after the last item
+            if index < package.1.len() - 1 {
+                write!(writer, ", ")?;
+            } else {
+                write!(writer, "\n]")?;
+            }
+        }
+        // Handle commas between objects
         writeln!(
             writer,
-            " }}{}",
-            if index < sound_files_info.len() - 1 {
-                ","
-            } else {
-                ""
-            }
+            "{}",
+            if index < groups.len() - 1 { "," } else { "" }
         )?;
     }
-    writeln!(writer, "]")?;
+    writeln!(writer, "}}")?;
+
+    Ok(())
+}
+
+fn write_sound_info_to_json_by_package(
+    output_file: &str,
+    sound_files_info: &[SoundFileInfo],
+) -> io::Result<()> {
+    println!("Writing sound info to {}", output_file);
+
+    let mut grouped_by_package: HashMap<String, Vec<&SoundFileInfo>> = HashMap::new();
+
+    // Group the sound files by their package
+    for info in sound_files_info {
+        grouped_by_package
+            .entry(info.package.clone())
+            .or_default()
+            .push(info);
+    }
+
+    let file = File::create(output_file)?;
+    let mut writer = BufWriter::new(file);
+
+    writeln!(writer, "{{")?;
+
+    let mut package_iter = grouped_by_package.iter().peekable();
+    while let Some((package, infos)) = package_iter.next() {
+        write!(writer, "\"{}\": [", package)?;
+
+        for (index, info) in infos.iter().enumerate() {
+            // Write sound information without the package
+            write!(
+                writer,
+                "\n  {{\"lang\": \"{}\", \"nc\": {}, \"br\": {}, \"name\": \"{}\", \"of\": \"{}\", \"hash\": {}, \"ns\": {}, \"dur\": {}}}",
+                info.lang,
+                info.num_channels,
+                info.bitrate,
+                info.name,
+                info.outfile,
+                info.hash,
+                info.num_samples,
+                info.duration
+            )?;
+
+            // Comma between items, not after the last item
+            if index < infos.len() - 1 {
+                write!(writer, ", ")?;
+            }
+        }
+
+        write!(writer, "  ]")?;
+
+        // Comma between packages, not after the last package
+        if package_iter.peek().is_some() {
+            writeln!(writer, ",")?;
+        } else {
+            writeln!(writer, "")?;
+        }
+    }
+
+    writeln!(writer, "}}")?;
 
     Ok(())
 }
@@ -123,6 +188,7 @@ fn write_sound_info_to_json(
 struct Args {
     indir: String,
     outdir: String,
+    ffmpeg: String,
     packages: Vec<String>,
     include_mp4: bool,
     yes: bool,
@@ -134,6 +200,7 @@ fn parse_args(args: &[String]) -> Args {
     let mut packages: Vec<String> = Vec::new();
     let mut include_mp4 = true;
     let mut yes = false;
+    let mut ffmpeg = String::from("ffmpeg");
 
     for arg in args.iter().skip(1) {
         if arg.starts_with("--indir=") {
@@ -159,14 +226,18 @@ fn parse_args(args: &[String]) -> Args {
             include_mp4 = false;
         } else if (arg == "-y") || (arg == "--yes") {
             yes = true;
+        } else if arg.starts_with("--ffmpeg=") {
+            ffmpeg = arg
+                .trim_start_matches("--ffmpeg=")
+                .trim_matches('"')
+                .to_string();
         }
     }
-
-    println!("include mp4: {}", include_mp4);
 
     Args {
         indir,
         outdir,
+        ffmpeg,
         packages,
         include_mp4,
         yes,
@@ -176,9 +247,6 @@ fn parse_args(args: &[String]) -> Args {
 #[allow(clippy::too_many_lines)]
 fn main() -> io::Result<()> {
     let start_time = Instant::now(); // Record start time
-
-    println!("Starting...");
-
     let args: Vec<String> = env::args().collect();
     let parsed = parse_args(args.as_ref());
 
@@ -335,12 +403,8 @@ fn main() -> io::Result<()> {
 
             let filename = path.file_name().unwrap_or_default().to_str().unwrap_or("");
 
-            let outfile = format!(
-                "{}.{}k.{}.webm",
-                filename.trim_end_matches(".wav"),
-                output_bitrate,
-                hash
-            );
+            let num_channels = wave_data.num_channels;
+            let outfile = format!("{output_bitrate}kb.{num_channels}ch.{hash}.webm");
 
             let mut output_path = PathBuf::from(&parsed.outdir);
             output_path.push(outfile.clone());
@@ -348,7 +412,7 @@ fn main() -> io::Result<()> {
             let name = filename.to_string().replace(".wav", "");
 
             // update the bitrate if theres a bitrates file with the sound name in it
-            let bitrates_path = package_path.join("bitrates");
+            let bitrates_path = package_path.join(".bitrates");
             let mut output_bitrate = output_bitrate;
             // Check if the bitrates file exists and is indeed a file
             if bitrates_path.is_file() {
@@ -468,7 +532,7 @@ fn main() -> io::Result<()> {
         eprintln!("Some files were converted to 48kHz. Please run the script again to encode the correct files.");
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            "Some files were converted to 48kHz",
+            "Some source files needed to be converted to 48kHz",
         ));
     }
 
@@ -485,6 +549,7 @@ fn main() -> io::Result<()> {
     }
 
     if let Some(output_path) = output_path.to_str() {
+        // write_sound_info_to_json_by_package(output_path, &sound_files_info)?;
         write_sound_info_to_json(output_path, &sound_files_info)?;
     } else {
         return Err(io::Error::new(
@@ -493,47 +558,46 @@ fn main() -> io::Result<()> {
         ));
     }
 
-    // let cached: Vec<u8> = match bincode::serialize(&sound_files_info) {
-    //     Ok(cached) => cached,
-    //     Err(e) => {
-    //         eprintln!("Error serializing sound info: {e}");
-    //         return Err(io::Error::new(
-    //             io::ErrorKind::InvalidData,
-    //             "Failed to serialize sound info",
-    //         ));
-    //     }
-    // };
-    // let mut file = File::create(".cache/sounds.bin")?;
-    // file.write_all(&cached)?;
-
-    println!("Encoding sound files...");
     let results: Vec<Result<(), io::Error>> = sound_files_info
         .par_iter()
-        .map(|info| run_ffmpeg(info, parsed.include_mp4))
+        .map(|info| run_ffmpeg(&parsed.ffmpeg, info, parsed.include_mp4))
         .collect();
 
     for (i, result) in results.iter().enumerate() {
         if let Err(e) = result {
             let infile = sound_files_info[i].path.clone();
             let outfile = sound_files_info[i].output_path.clone();
-            eprintln!("Error encoding sound file: {:?} to {:?} {e}", infile, outfile);
+            eprintln!(
+                "Error encoding sound file: {:?} to {:?} {e}",
+                infile, outfile
+            );
         }
-
     }
+
+    // used to see the final network transfer size
+    // let outfile = ".cache/info.json.gz";
+    // compress_json_file(".cache/info.json", outfile)?;
+    // let info = fs::metadata(outfile)?;
+    // let human_readable = format_size(info.len(), DECIMAL);
+    // println!("Compressed JSON file size: {human_readable}");
 
     let success = results.iter().all(Result::is_ok) && *success.lock().unwrap();
 
+    // print_langs(sound_files_info.as_slice());
+    let num_files = if parsed.include_mp4 {
+        sound_files_info.len() * 2
+    } else {
+        sound_files_info.len()
+    };
+
     let elapsed_time = start_time.elapsed();
     let elapsed_ms = elapsed_time.as_secs() * 1000 + u64::from(elapsed_time.subsec_millis());
-
-    print_langs(sound_files_info.as_slice());
-    println!("Number of sound files: {}", sound_files_info.len());
-    println!("Time taken: {elapsed_ms} ms");
+    let elapsed = format_duration(elapsed_ms as u128);
 
     if success {
-        println!("All files encoded successfully!");
+        println!("[encoder] encoded {num_files} sounds in {elapsed}");
     } else {
-        eprintln!("Some files failed to encode!");
+        eprintln!("[encoder] failure");
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             "Some files failed to encode",
@@ -543,14 +607,30 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn run_ffmpeg(info: &SoundFileInfo, include_mp4: bool) -> io::Result<()> {
+fn format_duration(milliseconds: u128) -> String {
+    if milliseconds < 1000 {
+        return format!("{}ms", milliseconds);
+    }
+
+    let minutes = milliseconds / 60000;
+    let seconds = (milliseconds % 60000) / 1000;
+    let remaining_ms = milliseconds % 1000;
+
+    match minutes {
+        0 => format!("{}s {}ms", seconds, remaining_ms),
+        _ => format!("{}m {}s {}ms", minutes, seconds, remaining_ms),
+    }
+}
+
+
+fn run_ffmpeg(ffmpeg: &str, info: &SoundFileInfo, include_mp4: bool) -> io::Result<()> {
     // canonicalize the input and output paths
     let in_path = Path::new(&info.path).canonicalize()?;
     let out_path = Path::new(&info.output_path);
     if out_path.exists() {
         return Ok(());
     }
-    println!("Encoding: {}", info.name.clone());
+    println!("[encoder] processing {}", info.path);
 
     if let Some(out_dir) = out_path.parent() {
         if !out_dir.exists() {
@@ -561,7 +641,7 @@ fn run_ffmpeg(info: &SoundFileInfo, include_mp4: bool) -> io::Result<()> {
 
     let infile = info.path.clone();
     let outfile = info.output_path.clone();
-    let output = Command::new("ffmpeg")
+    let output = Command::new(ffmpeg)
         .arg("-i")
         .arg(infile)
         .arg("-b:a")
@@ -572,6 +652,8 @@ fn run_ffmpeg(info: &SoundFileInfo, include_mp4: bool) -> io::Result<()> {
         .arg("48000")
         // .arg("-af")
         // .arg("aresample=resampler=soxr")
+        .arg("-map_metadata")
+        .arg("-1") // This tells ffmpeg to not copy any metadata from the input
         .arg("-y")
         .arg(outfile)
         .output()?;
@@ -601,6 +683,8 @@ fn run_ffmpeg(info: &SoundFileInfo, include_mp4: bool) -> io::Result<()> {
         .arg(info.bitrate.to_string() + "k")
         .arg("-c:a")
         .arg("aac")
+        .arg("-map_metadata")
+        .arg("-1") // This tells ffmpeg to not copy any metadata from the input
         .arg(outfile)
         .arg("-y")
         .output()?;
@@ -619,5 +703,31 @@ fn print_langs(sound_info: &[SoundFileInfo]) {
     let mut langs: Vec<String> = sound_info.iter().map(|info| info.lang.clone()).collect();
     langs.sort();
     langs.dedup();
-    println!("Languages: {:?}", langs);
+    println!("[encoder] languages: {:?}", langs);
+}
+
+fn compress_json_file(infile: &str, outfile: &str) -> Result<(), Error> {
+    // Step 1: Read the JSON file
+    let mut file = File::open(infile).expect("File not found");
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .expect("Failed to read file");
+
+    // Step 2: Deserialize JSON and then immediately serialize it to minify
+    let v: Value = serde_json::from_str(&contents)?;
+    let minified_json = serde_json::to_string(&v)?;
+
+    // Step 3: Gzip the minified JSON
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder
+        .write_all(minified_json.as_bytes())
+        .expect("Failed to write gzipped data");
+    let compressed_data = encoder.finish().expect("Failed to compress");
+
+    // Step 4: Save the gzipped data to a file
+    let mut output = File::create(outfile).expect("Failed to create output file");
+    output
+        .write_all(&compressed_data)
+        .expect("Failed to write to output file");
+    Ok(())
 }

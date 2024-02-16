@@ -1,0 +1,16 @@
+{
+  "name": "ecas-encoder",
+  "version": "1.0.0",
+  "description": "Hash 7 characters should be enough.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "jlof@evolution.com",
+  "license": "MIT",
+  "devDependencies": {
+    "ffmpeg-helper": "0.1.2",
+    "serve": "14.2.1"
+  }
+}

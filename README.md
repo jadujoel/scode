@@ -10,3 +10,16 @@ Add the bitrate to the name.
 Also put the language in the name.
 
 Put author in there
+
+
+## info.json
+
+The structure is
+
+```json
+{
+  "<game>": [
+    ["<name>" "<file>" "<num_samples>", "language"]
+  ]
+}
+```
