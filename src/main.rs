@@ -536,7 +536,7 @@ fn main() -> io::Result<()> {
         ));
     }
 
-    let output_path = Path::new(".cache/info.json");
+    let output_path = Path::new(parsed.outdir.as_str()).join(".info.json");
     if let Some(parent_dir) = output_path.parent() {
         if !parent_dir.exists() {
             fs::create_dir_all(parent_dir)?;
