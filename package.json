@@ -1,13 +1,14 @@
 {
-  "name": "ecas-encoder",
+  "name": "scode",
   "version": "1.0.0",
-  "description": "Hash 7 characters should be enough.",
-  "main": "index.js",
+  "description": "encode sound files",
+  "main": "index.mjs",
+  "bin": "index.mjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.mjs"
   },
   "keywords": [],
-  "author": "jlof@evolution.com",
+  "author": "joel.lof@icloud.com",
   "license": "MIT",
   "devDependencies": {
     "ffmpeg-helper": "0.1.2",

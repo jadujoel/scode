@@ -595,9 +595,9 @@ fn main() -> io::Result<()> {
     let elapsed = format_duration(elapsed_ms as u128);
 
     if success {
-        println!("[encoder] encoded {num_files} sounds in {elapsed}");
+        println!("Encoded {num_files} sounds in {elapsed}");
     } else {
-        eprintln!("[encoder] failure");
+        eprintln!("Encoding Failure");
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             "Some files failed to encode",
@@ -630,7 +630,7 @@ fn run_ffmpeg(ffmpeg: &str, info: &SoundFileInfo, include_mp4: bool) -> io::Resu
     if out_path.exists() {
         return Ok(());
     }
-    println!("[encoder] processing {}", info.path);
+    println!("Processing {}", info.path);
 
     if let Some(out_dir) = out_path.parent() {
         if !out_dir.exists() {
@@ -703,7 +703,7 @@ fn print_langs(sound_info: &[SoundFileInfo]) {
     let mut langs: Vec<String> = sound_info.iter().map(|info| info.lang.clone()).collect();
     langs.sort();
     langs.dedup();
-    println!("[encoder] languages: {:?}", langs);
+    println!("Languages: {:?}", langs);
 }
 
 fn compress_json_file(infile: &str, outfile: &str) -> Result<(), Error> {
