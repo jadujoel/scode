@@ -28,6 +28,7 @@ jobs:
       env:
         API_KEY_ID: ${{ secrets.API_KEY_ID }}
         API_KEY_ISSUER_ID: ${{ secrets.API_KEY_ISSUER_ID }}
+        API_KEY_BASE64: ${{ secrets.API_KEY_BASE64 }}
         APP_NAME: ${{ secrets.APP_NAME }}
         BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
         DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}

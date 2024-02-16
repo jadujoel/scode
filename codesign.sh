@@ -53,12 +53,16 @@
 # API_KEY_ISSUER_ID
 # P12_PASSWORD=YOUR_P12_PASSWORD
 
-# if args includes --setup
-# then encode the .p12 file to base64 so you can add it as a secret in github
-# and copy it to the clipboard
-
-# Step4:
+# Step4
 # run bash codesign.sh --setup
+# this will update the .env file with the base64 encoded .p12 and .p8 files
+
+# Step5
+# run bash codesign.sh
+# this will codesign the app and create a .app bundle
+
+# Step6
+# enjoy
 
 ENV_FILE=".env"
 
@@ -86,6 +90,20 @@ if [ "$1" == "--setup" ]; then
     echo "P12_BASE64=\"$P12_CONTENT\"" >> "$ENV_FILE"
   else
     echo "P12_BASE64 variable already exists in $ENV_FILE."
+  fi
+  if [ -z $API_KEY_BASE64 ]; then
+    echo "API_KEY_BASE64 variable not found in $ENV_FILE. Adding it now."
+    cd .codesign
+    base64 < AuthKey_$API_KEY_ID.p8 > AuthKey_$API_KEY_ID.p8.base64
+    cd ..
+    # Path to your base64-encoded .p12 file
+    API_KEY_BASE64_FILE=".codesign/AuthKey_$API_KEY_ID.p8.base64"
+    # Read the content of the base64-encoded .p12 file
+    API_KEY_CONTENT=$(cat "$API_KEY_BASE64_FILE")
+    # Append the P12_BASE64 variable and its content to the .env file
+    echo "API_KEY_BASE64=\"$API_KEY_CONTENT\"" >> "$ENV_FILE"
+  else
+    echo "API_KEY_BASE64 variable already exists in $ENV_FILE."
   fi
   exit 0
 fi
@@ -130,16 +148,28 @@ if [ -z "$P12_PASSWORD" ]; then
     exit 1
 fi
 
-DEVELOPER_ID="Developer ID Application: $YOUR_NAME ($TEAM_ID)"
-ENTITLEMENTS=".codesign/entitlements.plist"
+if [ -z "$P12_BASE64" ]; then
+    echo "P12_BASE64 is not set"
+    exit 1
+fi
+
+if [ -z "$API_KEY_BASE64" ]; then
+    echo "API_KEY_BASE64 is not set"
+    exit 1
+fi
+
+mkdir -p .codesign
+
 INPUT_PATH="target/release/$APP_NAME"
-OUTPUT_PATH="target/release/$APP_NAME.zip"
-API_KEY_PATH=".codesign/AuthKey_$API_KEY_ID.p8" # Replace with the path to your .p8 API Key file
+if [ ! -f $INPUT_PATH ]; then
+  echo "The file $INPUT_PATH does not exist"
+  exit 1
+fi
 
 # Step: Create an Entitlements file
 echo "Creating an Entitlements file..."
+ENTITLEMENTS=".codesign/entitlements.plist"
 touch .env
-mkdir -p .codesign
 cat << EOF > $ENTITLEMENTS
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -152,8 +182,20 @@ cat << EOF > $ENTITLEMENTS
 </plist>
 EOF
 
-KEYCHAIN_PATH=~/Library/Keychains/login.keychain-db
+## if api key file doesnt exist, create it from env variable
+API_KEY_PATH=".codesign/AuthKey_$API_KEY_ID.p8"
+if [ ! -f $API_KEY_PATH ]; then
+  echo "Creating API key file from base64..."
+  echo $API_KEY_BASE64 | base64 --decode > $API_KEY_PATH
+fi
+
 P12_FILE_PATH=.codesign/developerID_application.p12
+if [ ! -f $P12_FILE_PATH ]; then
+  echo "Creating .p12 file from base64..."
+  echo $P12_BASE64 | base64 --decode > $P12_FILE_PATH
+fi
+
+KEYCHAIN_PATH=~/Library/Keychains/login.keychain-db
 
 echo "Creating a temporary keychain..."
 # Create a temporary keychain
@@ -178,10 +220,12 @@ security set-key-partition-list -S apple-tool:,apple: -s -k "" temp.keychain-db
 
 # Step 3: Sign your application
 echo "Signing the application..."
+DEVELOPER_ID="Developer ID Application: $YOUR_NAME ($TEAM_ID)"
 codesign --sign "$DEVELOPER_ID" --entitlements "$ENTITLEMENTS" --options runtime --timestamp --force "$INPUT_PATH"
 
 # Step 4: Create a ZIP archive for notarization
 echo "Creating a ZIP archive for notarization..."
+OUTPUT_PATH="target/release/$APP_NAME.zip"
 ditto -c -k --keepParent "$INPUT_PATH" "$OUTPUT_PATH"
 
 # Step 5: Submit the app for notarization using notarytool
