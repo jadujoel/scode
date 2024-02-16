@@ -9,6 +9,8 @@ on:
 jobs:
   macos:
     runs-on: macos-latest
+    environment:
+      name: scode
     steps:
     - uses: actions/checkout@v4
     - uses: actions-rs/toolchain@v1
@@ -20,7 +22,11 @@ jobs:
       with:
         command: build
         args: --release
+
+    - name: codesign
+      run: bash codesign.sh
+
     - uses: actions/upload-artifact@v4
       with:
         name: scode-macos
-        path: target/release/scode
+        path: scode.app

@@ -4,7 +4,10 @@
 /ignore
 /.cache
 /encoded
-.DS_Store
+/.codesign
 /node_modules
+.DS_Store
+.env
 package-lock.json
 Cargo.lock
+*.app
