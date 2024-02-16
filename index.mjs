@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { path } from 'ffmpeg-helper'
 import { spawn } from 'child_process'
 
@@ -15,4 +17,8 @@ export function encode(args) {
   child.on('error', (err) => {
     console.error('\nFailed to start subprocess.', err);
   });
+}
+
+if (import.meta?.url === `file://${process.argv[1]}`) {
+  encode(process.argv.slice(2))
 }
