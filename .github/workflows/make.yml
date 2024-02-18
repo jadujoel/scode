@@ -7,12 +7,29 @@ on:
   workflow_dispatch:
 
 jobs:
-  macos:
-    runs-on: macos-latest-xlarge
-    environment:
-      name: scode
+  macos_arm:
+    runs-on: macos-11
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: aarch64-apple-darwin
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target aarch64-apple-darwin
+    - uses: actions/upload-artifact@v2
+      with:
+        name: macos_arm
+        path: target/aarch64-apple-darwin/release/scode
+
+  macos_x86:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
@@ -22,24 +39,101 @@ jobs:
       with:
         command: build
         args: --release
-
-    - name: codesign
-      run: |
-        echo $YOUR_NAME
-        bash codesign.sh
-      env:
-        API_KEY_ID: ${{ secrets.API_KEY_ID }}
-        API_KEY_ISSUER_ID: ${{ secrets.API_KEY_ISSUER_ID }}
-        API_KEY_BASE64: ${{ secrets.API_KEY_BASE64 }}
-        APP_NAME: ${{ secrets.APP_NAME }}
-        BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
-        DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}
-        P12_BASE64: ${{ secrets.P12_BASE64 }}
-        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-        TEAM_ID: ${{ secrets.TEAM_ID }}
-        YOUR_NAME: ${{ secrets.YOUR_NAME }}
-
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v2
       with:
-        name: scode-macos
-        path: target/release/scode.zip
+        name: macos_x86
+        path: target/release/scode
+
+  windows_x86:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: x86_64-pc-windows-msvc
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target x86_64-pc-windows-msvc
+    - uses: actions/upload-artifact@v2
+      with:
+        name: windows_x86
+        path: target/x86_64-pc-windows-msvc/release/scode.exe
+
+  windows_arm:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: aarch64-pc-windows-msvc
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target aarch64-pc-windows-msvc
+    - uses: actions/upload-artifact@v2
+      with:
+        name: windows_arm
+        path: target/aarch64-pc-windows-msvc/release/scode.exe
+
+  ubuntu_x86:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release
+    - uses: actions/upload-artifact@v2
+      with:
+        name: ubuntu_x86
+        path: target/release/scode
+
+  ubuntu_arm:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: aarch64-unknown-linux-gnu
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target aarch64-unknown-linux-gnu
+    - uses: actions/upload-artifact@v2
+      with:
+        name: ubuntu_arm
+        path: target/aarch64-unknown-linux-gnu/release/scode
+
+  combine_artifacts:
+    needs: [macos_arm, macos_x86, windows_x86, windows_arm, ubuntu_x86, ubuntu_arm]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: combined_artifacts/
+
+      - name: Zip artifacts
+        run: |
+          zip -r combined_artifacts.zip combined_artifacts/
+
+      - name: Upload combined artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: combined_artifacts
+          path: combined_artifacts.zip
