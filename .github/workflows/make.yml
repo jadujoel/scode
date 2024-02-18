@@ -9,6 +9,7 @@ on:
 jobs:
   macos_arm:
     runs-on: macos-latest
+    environment: scode
     steps:
     - uses: actions/checkout@v2
     - uses: actions-rs/toolchain@v1
@@ -41,6 +42,7 @@ jobs:
 
   macos_x86:
     runs-on: macos-latest
+    environment: scode
     steps:
     - uses: actions/checkout@v2
     - uses: actions-rs/toolchain@v1
