@@ -128,6 +128,24 @@ jobs:
         name: ubuntu_x86
         path: target/release/scode
 
+  ubuntu_arm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: arm-unknown-linux-gnueabi
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target arm-unknown-linux-gnueabi
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ubuntu_arm
+          path: target/arm-unknown-linux-gnueabi/release/scode
   # ubuntu_arm:
   #   runs-on: ubuntu-latest
   #   steps:
@@ -159,7 +177,7 @@ jobs:
         # {target: "aarch64-pc-windows-msvc", os: "windows-latest", name: "windows_arm"}
 
   combine_artifacts:
-    needs: [macos_arm, macos_x86, windows_x86, windows_arm, ubuntu_x86]
+    needs: [macos_arm, macos_x86, windows_x86, windows_arm, ubuntu_x86, ubuntu_arm]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
