@@ -21,7 +21,19 @@ jobs:
       with:
         command: build
         args: --release --target aarch64-apple-darwin
-    - run: bash codesign.sh "aarch64-apple-darwin/release"
+    - name: codesign
+      run: bash codesign.sh "aarch64-apple-darwin/release"
+      env:
+        API_KEY_ID: ${{ secrets.API_KEY_ID }}
+        API_KEY_ISSUER_ID: ${{ secrets.API_KEY_ISSUER_ID }}
+        API_KEY_BASE64: ${{ secrets.API_KEY_BASE64 }}
+        APP_NAME: ${{ secrets.APP_NAME }}
+        BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
+        DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}
+        P12_BASE64: ${{ secrets.P12_BASE64 }}
+        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        TEAM_ID: ${{ secrets.TEAM_ID }}
+        YOUR_NAME: ${{ secrets.YOUR_NAME }}
     - uses: actions/upload-artifact@v2
       with:
         name: macos_arm
@@ -40,7 +52,19 @@ jobs:
       with:
         command: build
         args: --release
-    - run: bash codesign.sh "release"
+    - name: codesign
+      run: bash codesign.sh "release"
+      env:
+        API_KEY_ID: ${{ secrets.API_KEY_ID }}
+        API_KEY_ISSUER_ID: ${{ secrets.API_KEY_ISSUER_ID }}
+        API_KEY_BASE64: ${{ secrets.API_KEY_BASE64 }}
+        APP_NAME: ${{ secrets.APP_NAME }}
+        BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
+        DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}
+        P12_BASE64: ${{ secrets.P12_BASE64 }}
+        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        TEAM_ID: ${{ secrets.TEAM_ID }}
+        YOUR_NAME: ${{ secrets.YOUR_NAME }}
     - uses: actions/upload-artifact@v2
       with:
         name: macos_x86
@@ -110,19 +134,19 @@ jobs:
       with:
         profile: minimal
         toolchain: stable
-        # target: aarch64-unknown-linux-gnu
-        target: gcc-aarch64-linux-gnu
+        target: arm-unknown-linux-gnueabi
+        # target: gcc-aarch64-linux-gnu
         override: true
     - uses: actions-rs/cargo@v1
       with:
         command: build
-        # args: --release --target aarch64-unknown-linux-gnu
-        args: --release --target gcc-aarch64-linux-gnu
+        args: --release --target arm-unknown-linux-gnueabi
+        # args: --release --target gcc-aarch64-linux-gnu
     - uses: actions/upload-artifact@v2
       with:
         name: ubuntu_arm
-        # path: target/aarch64-unknown-linux-gnu/release/scode
-        path: target/gcc-aarch64-linux-gnu/release/scode
+        path: target/arm-unknown-linux-gnueabi/release/scode
+        # path: target/gcc-aarch64-linux-gnu/release/scode
 
 
         # {target: "aarch64-unknown-linux-gnu", os: "ubuntu-latest", name: "linux_arm"},
