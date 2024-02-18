@@ -8,7 +8,7 @@ on:
 
 jobs:
   macos_arm:
-    runs-on: macos-11
+    runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
     - uses: actions-rs/toolchain@v1
@@ -21,6 +21,7 @@ jobs:
       with:
         command: build
         args: --release --target aarch64-apple-darwin
+    - run: bash codesign.sh "aarch64-apple-darwin/release"
     - uses: actions/upload-artifact@v2
       with:
         name: macos_arm
@@ -39,6 +40,7 @@ jobs:
       with:
         command: build
         args: --release
+    - run: bash codesign.sh "release"
     - uses: actions/upload-artifact@v2
       with:
         name: macos_x86
@@ -108,16 +110,27 @@ jobs:
       with:
         profile: minimal
         toolchain: stable
-        target: aarch64-unknown-linux-gnu
+        # target: aarch64-unknown-linux-gnu
+        target: gcc-aarch64-linux-gnu
         override: true
     - uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --release --target aarch64-unknown-linux-gnu
+        # args: --release --target aarch64-unknown-linux-gnu
+        args: --release --target gcc-aarch64-linux-gnu
     - uses: actions/upload-artifact@v2
       with:
         name: ubuntu_arm
-        path: target/aarch64-unknown-linux-gnu/release/scode
+        # path: target/aarch64-unknown-linux-gnu/release/scode
+        path: target/gcc-aarch64-linux-gnu/release/scode
+
+
+        # {target: "aarch64-unknown-linux-gnu", os: "ubuntu-latest", name: "linux_arm"},
+        # {target: "x86_64-unknown-linux-gnu", os: "ubuntu-latest", name: "linux_x86"},
+        # {target: "x86_64-apple-darwin", os: "macos-latest", name: "macos_x86"},
+        # {target: "aarch64-apple-darwin", os: "macos-latest-xlarge", name: "macos_arm"},
+        # {target: "x86_64-pc-windows-msvc", os: "windows-latest", name: "windows_x86"},
+        # {target: "aarch64-pc-windows-msvc", os: "windows-latest", name: "windows_arm"}
 
   combine_artifacts:
     needs: [macos_arm, macos_x86, windows_x86, windows_arm, ubuntu_x86, ubuntu_arm]
@@ -130,10 +143,10 @@ jobs:
 
       - name: Zip artifacts
         run: |
-          zip -r combined_artifacts.zip combined_artifacts/
+          zip -r artifacts.zip artifacts/
 
       - name: Upload combined artifact
         uses: actions/upload-artifact@v2
         with:
-          name: combined_artifacts
-          path: combined_artifacts.zip
+          name: artifacts
+          path: artifacts.zip

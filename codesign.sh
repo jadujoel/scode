@@ -65,6 +65,15 @@
 
 ENV_FILE=".env"
 
+# target is provided by the user as the first argument
+# if not provided, the default value is "scode"
+# this is needed since rust puts the binary in a folder with the name of the project
+# example target/release/scode
+# or target/aarch64-apple-darwin/release/scode
+TARGET=${1:-"release"}
+
+echo "Target: $TARGET"
+
 mkdir -p .codesign
 
 if [ -f .env ]; then
@@ -159,7 +168,7 @@ if [ -z "$API_KEY_BASE64" ]; then
     exit 1
 fi
 
-INPUT_PATH="target/release/$APP_NAME"
+INPUT_PATH="target/$TARGET/$APP_NAME"
 if [ ! -f "$INPUT_PATH" ]; then
   echo "The file $INPUT_PATH does not exist"
   exit 1
@@ -221,10 +230,10 @@ codesign --sign "$DEVELOPER_ID" --entitlements "$ENTITLEMENTS" --options runtime
 
 echo "Creating an app bundle..."
 
-mkdir -p scode.app/Contents/MacOS
-cp target/release/scode scode.app/Contents/MacOS/scode
+mkdir -p "$APP_NAME.app/Contents/MacOS"
+cp "target/$TARGET/$APP_NAME" "$APP_NAME.app/Contents/MacOS/$APP_NAME"
 
-touch scode.app/Contents/Info.plist
+touch "$APP_NAME.app/Contents/Info.plist"
 BUNDLE_VERSION="1.0"
 
 printf "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
@@ -259,14 +268,14 @@ printf "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
     <true/>
 </dict>
 </plist>
-" "${APP_NAME}" "${BUNDLE_ID}" "${APP_NAME}" "${BUNDLE_VERSION}" > scode.app/Contents/Info.plist
+" "${APP_NAME}" "${BUNDLE_ID}" "${APP_NAME}" "${BUNDLE_VERSION}" > "$APP_NAME.app/Contents/Info.plist"
 
 echo "Codesigning the app bundle..."
 INPUT_PATH="$APP_NAME.app"
 codesign --deep --sign "$DEVELOPER_ID" --entitlements "$ENTITLEMENTS" --options runtime --timestamp --force "$INPUT_PATH"
 
 echo "Creating a ZIP archive for notarization..."
-OUTPUT_PATH="target/release/$APP_NAME.zip"
+OUTPUT_PATH="target/$TARGET/$APP_NAME.zip"
 ditto -c -k --keepParent "$INPUT_PATH" "$OUTPUT_PATH"
 
 echo "Uploading the app for notarization..."
