@@ -17,6 +17,8 @@ jobs:
           toolchain: stable
           target: arm-unknown-linux-gnueabi
           override: true
+      - name: Install ARM GCC
+        run: sudo apt-get update && sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
       - uses: actions-rs/cargo@v1
         with:
           command: build
