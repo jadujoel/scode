@@ -22,6 +22,7 @@ use std::{
 use chrono::{DateTime, Utc};
 use once_cell::sync::OnceCell;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 use walkdir::WalkDir;
 
@@ -29,16 +30,9 @@ mod wave;
 use wave::Data;
 
 mod config;
-use clap::Parser;
 use config::{Args, Config};
+use clap::Parser;
 
-mod parser;
-
-mod info;
-// use info::{Item, Map};
-
-mod logging;
-use logging::LogLevel;
 
 lazy_static! {
     static ref STDERR: Arc<Mutex<StandardStream>> =
@@ -101,7 +95,114 @@ macro_rules! success {
     }};
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct SoundFileInfo {
+    path: String,
+    name: String,
+    outfile: String,
+    package: String,
+    lang: String,
+    output_path: String,
+    bitrate: u32,
+    num_samples: usize,
+    sample_rate: u32,
+    modification_date: String,
+}
+
+fn write_hashmap_to_json_pretty(file_infos: &HashMap<String, SoundFileInfo>) -> io::Result<()> {
+    // Ensure the cache directory exists
+    let cache_dir = Path::new(".cache");
+    std::fs::create_dir_all(cache_dir)?;
+
+    // Create and open the file
+    let file_path = cache_dir.join("info.json");
+    let file = File::create(file_path)?;
+
+    // Serialize and write data as pretty JSON
+    serde_json::to_writer_pretty(file, &file_infos)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
+}
+
+fn write_sound_info_to_json(output_file: &str, finfo: &[SoundFileInfo]) -> io::Result<()> {
+    let file = File::create(output_file)?;
+    let mut writer = BufWriter::new(file);
+
+    let mut groups: HashMap<String, Vec<&SoundFileInfo>> = HashMap::new();
+
+    // Group the sound files by their package
+    for info in finfo {
+        groups.entry(info.package.clone()).or_default().push(info);
+    }
+
+    writeln!(writer, "{{")?;
+    for (index, package) in groups.iter().enumerate() {
+        write!(writer, "\"{}\": [", package.0)?;
+        for (index, info) in package.1.iter().enumerate() {
+            if info.lang == "none" {
+                // If lang is "none", skip the lang field
+                write!(
+                    writer,
+                    "\n  [\"{}\", \"{}\", {}]",
+                    info.name,
+                    info.outfile.replace(".webm", ""),
+                    info.num_samples,
+                )?;
+            } else {
+                // If lang is not "none", include it in the JSON
+                write!(
+                    writer,
+                    "\n  [\"{}\", \"{}\", {}, \"{}\"]",
+                    info.name,
+                    info.outfile.replace(".webm", ""),
+                    info.num_samples,
+                    info.lang,
+                )?;
+            }
+
+            // Comma between items, not after the last item
+            if index < package.1.len() - 1 {
+                write!(writer, ", ")?;
+            } else {
+                write!(writer, "\n]")?;
+            }
+        }
+        // Handle commas between objects
+        writeln!(
+            writer,
+            "{}",
+            if index < groups.len() - 1 { "," } else { "" }
+        )?;
+    }
+    writeln!(writer, "}}")?;
+
+    Ok(())
+}
+
 static LOG_LEVEL: OnceCell<LogLevel> = OnceCell::new();
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+enum LogLevel {
+    Debug,
+    Info,
+    Success,
+    Warn,
+    Error,
+    Silent,
+}
+
+impl LogLevel {
+    fn from_str(level: &str) -> Option<Self> {
+        match level.to_lowercase().as_str() {
+            "debug" => Some(Self::Debug),
+            "info" => Some(Self::Info),
+            "warn" => Some(Self::Warn),
+            "error" => Some(Self::Error),
+            "success" => Some(Self::Success),
+            "silent" => Some(Self::Silent),
+            _ => None,
+        }
+    }
+}
 
 fn set_global_log_level(level: LogLevel) {
     LOG_LEVEL
@@ -113,12 +214,92 @@ fn get_global_log_level() -> LogLevel {
     *LOG_LEVEL.get().unwrap_or(&LogLevel::Info) // Default to LogLevel::Log if not set
 }
 
+#[allow(clippy::struct_excessive_bools)]
+struct ParsedArgs {
+    indir: String,
+    outdir: String,
+    ffmpeg: String,
+    packages: Vec<String>,
+    include_mp4: bool,
+    bitrate: u32,
+    yes: bool,
+    skip_cache: bool,
+    loglevel: LogLevel,
+    help: bool,
+}
+
 #[derive(Debug, Clone)]
 struct FilePath {
     path_buf: PathBuf,
     package: String,
     package_path: PathBuf,
     lossy: String,
+}
+
+fn parse_args(args: &[String]) -> ParsedArgs {
+    // Initialize with default values
+    let mut indir = String::from("packages");
+    let mut outdir = String::from("encoded");
+    let mut ffmpeg = String::from("ffmpeg");
+    let mut packages: Vec<String> = Vec::new();
+    let mut include_mp4 = true;
+    let mut yes = false;
+    let mut bitrate = 96;
+    let mut skip_cache = false;
+    let mut loglevel = LogLevel::Info;
+    let mut help = false;
+
+    for arg in args.iter().skip(1) {
+        match arg {
+            a if a == "-h" || a == "--help" => {
+                help = true;
+            }
+            a if a.starts_with("--indir=") => {
+                indir = a["--indir=".len()..].trim_matches('"').to_string();
+            }
+            a if a.starts_with("--outdir=") => {
+                outdir = a["--outdir=".len()..].trim_matches('"').to_string();
+            }
+            a if a.starts_with("--ffmpeg=") => {
+                ffmpeg = a["--ffmpeg=".len()..].trim_matches('"').to_string();
+            }
+            a if a.starts_with("--packages=") => {
+                packages = a["--packages=".len()..]
+                    .trim_matches('"')
+                    .split(',')
+                    .map(String::from)
+                    .collect();
+            }
+            a if a == "--no-mp4" => include_mp4 = false,
+            a if a == "-y" || a == "--yes" => yes = true,
+            a if a.starts_with("--bitrate=") => {
+                bitrate = a["--bitrate=".len()..]
+                    .trim_matches('"')
+                    .parse()
+                    .unwrap_or(96);
+            }
+            a if a.starts_with("--skip-cache") => skip_cache = true,
+            a if a.starts_with("--loglevel=") => {
+                if let Some(level) = LogLevel::from_str(&a["--loglevel=".len()..]) {
+                    loglevel = level;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    ParsedArgs {
+        indir,
+        outdir,
+        ffmpeg,
+        packages,
+        include_mp4,
+        bitrate,
+        yes,
+        skip_cache,
+        loglevel,
+        help,
+    }
 }
 
 // Function to get the modification date as a String
@@ -131,14 +312,33 @@ fn get_modification_date_string<P: AsRef<Path>>(path: P) -> std::io::Result<Stri
     Ok(datetime.to_rfc3339())
 }
 
+// Function to save a HashMap of SoundFileInfo to disk
+fn save_cache(sound_info: &HashMap<String, SoundFileInfo>, file_path: &Path) -> io::Result<()> {
+    let encoded: Vec<u8> = bincode::serialize(sound_info)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+
+    let mut file = File::create(file_path)?;
+    file.write_all(&encoded)?;
+    Ok(())
+}
+
+// Function to load a HashMap of SoundFileInfo from disk
+fn load_cache(file_path: &Path) -> io::Result<HashMap<String, SoundFileInfo>> {
+    let mut file = File::open(file_path)?;
+    let mut encoded = Vec::new();
+    file.read_to_end(&mut encoded)?;
+    let sound_info: HashMap<String, SoundFileInfo> = bincode::deserialize(&encoded)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+    Ok(sound_info)
+}
+
 fn main() -> io::Result<()> {
     let start_time = Instant::now(); // Record start time
-                                     // let args = Args::parse();
-                                     // let config = Config::load(&args.config)
-                                     //     .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+    let args = Args::parse();
+    let config = Config::load(&args.config).map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
     let args: Vec<String> = env::args().collect();
-    let parsed = parser::parse_args(args.as_ref());
+    let parsed = parse_args(args.as_ref());
     if parsed.help {
         info!(
             "Usage: {} --indir=<directory> [--outdir=<output-file>] [--ffmpeg=<path-to-ffmpeg>] [--packages=<package1,package2,...>] [--no-mp4] [--bitrate=<bitrate>] [--skip-cache] [--loglevel=<debug|info|warn|error|silent>]",
@@ -164,13 +364,13 @@ fn main() -> io::Result<()> {
     run(&parsed)?;
     let elapsed_time = start_time.elapsed();
     let elapsed_ms = elapsed_time.as_secs() * 1000 + u64::from(elapsed_time.subsec_millis());
-    let elapsed = logging::duration(u128::from(elapsed_ms));
+    let elapsed = format_duration(u128::from(elapsed_ms));
     success!("Done in {elapsed}");
     Ok(())
 }
 
 #[allow(clippy::too_many_lines)]
-fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
+fn run(parsed: &ParsedArgs) -> io::Result<()> {
     let output_bitrate = parsed.bitrate;
     let now = Instant::now();
     let wav_files: Vec<PathBuf> = WalkDir::new(&parsed.indir)
@@ -199,16 +399,17 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
     let now = Instant::now();
     let cache_path = Path::new(".cache");
     let cached = if cache_path.exists() && !parsed.skip_cache {
-        let res = info::Map::from_cache_bin()?;
+        let res = load_cache(Path::new(".cache/info.bin")).unwrap_or_default();
         debug!(
-            "Loaded cache from disk in {} ms, {} microseconds per sound",
+            "Loaded sound info from disk in {} ms, {} microseconds per sound",
             now.elapsed().as_millis(),
             now.elapsed().as_micros() / num_sounds
         );
         res
     } else {
         debug!("No cache found, creating new cache");
-        info::Map::new()
+        fs::create_dir_all(cache_path)?;
+        HashMap::new()
     };
 
     let now = Instant::now();
@@ -249,7 +450,7 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
     );
 
     let now = Instant::now();
-    let finfo: Vec<Result<info::Item, io::Error>> = paths
+    let finfo: Vec<Result<SoundFileInfo, io::Error>> = paths
         .clone()
         .into_iter()
         .map(|file_path| {
@@ -320,7 +521,7 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
                 lang_file.read_to_string(&mut lang).unwrap();
                 lang.trim().to_string()
             } else {
-                "_".to_string()
+                "none".to_string()
             };
             // // lang_time += lang_start_time.elapsed().as_micros() as f32;
 
@@ -365,14 +566,14 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
                         continue;
                     }
                     // Process the sound_name and bitrate_str...
-                    if sound_name.unwrap_or("_") == name {
+                    if sound_name.unwrap_or("none") == name {
                         bitrate = bitrate_str.unwrap_or("96").parse().unwrap_or(bitrate);
                     }
                 }
             }
             // // bitrate_time += bitrates_start_time.elapsed().as_micros() as f32;
 
-            Ok(info::Item {
+            Ok(SoundFileInfo {
                 path: lossy.to_string(),
                 name,
                 outfile,
@@ -517,7 +718,7 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
     let finfo = finfo
         .into_iter()
         .filter_map(Result::ok)
-        .collect::<Vec<info::Item>>();
+        .collect::<Vec<SoundFileInfo>>();
 
     info!("Found {} source files", finfo.len());
     debug!(
@@ -527,7 +728,7 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
     );
 
     let now = Instant::now();
-    let sounds_to_convert: Vec<&info::Item> = finfo
+    let sounds_to_convert: Vec<&SoundFileInfo> = finfo
         .iter()
         .filter(|info| info.sample_rate != 48000)
         .collect();
@@ -619,8 +820,26 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
     );
 
     let now = Instant::now();
-    info::AtlasMap::from_vec(&finfo).save_json_v1(".cache")?;
-    info::AtlasMap::from_vec(&finfo).save_json_v2(".cache")?;
+    let output_path = Path::new(parsed.outdir.as_str()).join(".info.json");
+    if let Some(parent_dir) = output_path.parent() {
+        if !parent_dir.exists() {
+            fs::create_dir_all(parent_dir)?;
+        }
+    } else {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            "Failed to create output directory",
+        ));
+    }
+    if let Some(output_path) = output_path.to_str() {
+        // write_sound_info_to_json_by_package(output_path, &finfo)?;
+        write_sound_info_to_json(output_path, &finfo)?;
+    } else {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            "Failed to write sound info to JSON",
+        ));
+    }
     debug!(
         "Wrote sound info to JSON in {} ms, {} microseconds per sound",
         now.elapsed().as_millis(),
@@ -633,7 +852,7 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
 
     let now = Instant::now();
     let num_sounds_encoded = Arc::new(Mutex::new(0));
-    let sounds_that_needs_encoding: Vec<&info::Item> = if parsed.packages.is_empty() {
+    let sounds_that_needs_encoding: Vec<&SoundFileInfo> = if parsed.packages.is_empty() {
         finfo
             .par_iter()
             .filter(|info| !Path::new(&info.output_path).exists())
@@ -663,7 +882,15 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
             }
             *num_sounds_encoded.lock().unwrap() += 1;
             let ns = *num_sounds_encoded.lock().unwrap();
-            logging::log_progress(ns, num_sounds_to_encode, now, parsed.loglevel);
+            let percentage = (ns as f32 / num_sounds_to_encode as f32) * 100.0;
+            let elapsed_time = now.elapsed().as_secs();
+            let avg_time_per_sound = elapsed_time as f32 / ns as f32;
+            let remaining_sounds = num_sounds_to_encode - ns;
+            let remaining_time = (remaining_sounds as f32 * avg_time_per_sound) as u64;
+            if parsed.loglevel >= LogLevel::Info {
+                print!("Encoding {ns} of {num_sounds_to_encode} ({percentage:.1}%) | ETA: {remaining_time} seconds  \r");
+                io::stdout().flush().unwrap();
+            }
             Some(run_ffmpeg(&parsed.ffmpeg, info, parsed.include_mp4))
         })
         .collect();
@@ -700,8 +927,12 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
     );
 
     let now = Instant::now();
-    let map = info::Map::from_vec(finfo);
-    map.save_cache_bin()?;
+    // Convert the vector to a HashMap
+    let info_map: HashMap<String, SoundFileInfo> = finfo
+        .into_iter()
+        .map(|info| (info.path.clone(), info))
+        .collect();
+    save_cache(&info_map, Path::new(".cache/info.bin"))?;
     debug!(
         "Saved sound info to disk in {} ms",
         now.elapsed().as_millis(),
@@ -709,7 +940,7 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
 
     if parsed.loglevel == LogLevel::Debug {
         let now = Instant::now();
-        map.save_cache_json()?;
+        write_hashmap_to_json_pretty(&info_map)?;
         debug!(
             "Wrote sound debug info to JSON in {} ms",
             now.elapsed().as_millis(),
@@ -727,7 +958,23 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
     Ok(())
 }
 
-fn run_ffmpeg(ffmpeg: &str, info: &info::Item, include_mp4: bool) -> io::Result<()> {
+fn format_duration(milliseconds: u128) -> String {
+    if milliseconds < 1000 {
+        return format!("{milliseconds}ms");
+    }
+
+    let minutes = milliseconds / 60000;
+    let seconds = (milliseconds % 60000) / 1000;
+    let remaining_ms = milliseconds % 1000;
+
+    if minutes == 0 {
+        format!("{seconds}s {remaining_ms}ms")
+    } else {
+        format!("{minutes}m {seconds}s {remaining_ms}ms")
+    }
+}
+
+fn run_ffmpeg(ffmpeg: &str, info: &SoundFileInfo, include_mp4: bool) -> io::Result<()> {
     // canonicalize the input and output paths
     let in_path = Path::new(&info.path).canonicalize()?;
     let out_path = Path::new(&info.output_path);
@@ -800,7 +1047,7 @@ fn run_ffmpeg(ffmpeg: &str, info: &info::Item, include_mp4: bool) -> io::Result<
     Ok(())
 }
 
-fn print_langs(sound_info: &[info::Item]) {
+fn print_langs(sound_info: &[SoundFileInfo]) {
     let mut langs: Vec<String> = sound_info.iter().map(|info| info.lang.clone()).collect();
     langs.sort();
     langs.dedup();

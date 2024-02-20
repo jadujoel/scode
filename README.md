@@ -119,6 +119,8 @@ npx scode --indir="packages" --outdir="encoded" --bitrate=64 --ffmpeg="<path_to_
 
 ## Notes
 
+If encoding mono sound, should it be 48kbit vs 96kbit for stereo?
+
 Serviceworker gets cache time from header.
 Hash 7 characters should be enough.
 CI/CD doesnt want to change cache time depending on the file type.
