@@ -76,12 +76,12 @@ impl Map {
         Ok(self)
     }
 
-    pub fn from_cache_json() -> io::Result<Self> {
-        let file = File::open(".cache/info.json")?;
-        let value: HashMap<String, Item> = serde_json::from_reader(file)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-        Ok(Map::from_map(value))
-    }
+    // pub fn from_cache_json() -> io::Result<Self> {
+    //     let file = File::open(".cache/info.json")?;
+    //     let value: HashMap<String, Item> = serde_json::from_reader(file)
+    //         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+    //     Ok(Map::from_map(value))
+    // }
 
     pub fn save_cache_json(&self) -> io::Result<&Self> {
         let dir = Path::new(".cache");
@@ -109,6 +109,15 @@ impl AtlasItem {
             nums: info.num_samples,
             lang: info.lang.clone(),
         }
+    }
+    fn format(&self) -> String {
+        format!(
+            "\n  [\"{}\", \"{}\", {}, \"{}\"]",
+            self.name,
+            self.file.replace(".webm", ""),
+            self.nums,
+            self.lang,
+        )
     }
 }
 
@@ -145,11 +154,6 @@ impl AtlasMap {
         Ok(self)
     }
 
-    pub fn save_cache_json(&self) -> io::Result<&Self> {
-        self.save_json_v1(".cache");
-        Ok(self)
-    }
-
     pub fn save_json_v2(&self, dir: &str) -> io::Result<&Self> {
         let dirp = Path::new(dir);
         if !dirp.exists() {
@@ -160,8 +164,8 @@ impl AtlasMap {
         writeln!(writer, "{{")?;
         for (index, package) in self.value.iter().enumerate() {
             write!(writer, "\"{}\": [", package.0)?;
-            for (index, info) in package.1.iter().enumerate() {
-                write!(writer, "{}", self.format_item(info))?;
+            for (index, item) in package.1.iter().enumerate() {
+                write!(writer, "{}", item.format())?;
                 // Comma between items, not after the last item
                 if index < package.1.len() - 1 {
                     write!(writer, ", ")?;
@@ -182,16 +186,6 @@ impl AtlasMap {
         }
         writeln!(writer, "}}")?;
         Ok(self)
-    }
-
-    fn format_item(&self, info: &AtlasItem) -> String {
-        format!(
-            "\n  [\"{}\", \"{}\", {}, \"{}\"]",
-            info.name,
-            info.file.replace(".webm", ""),
-            info.nums,
-            info.lang,
-        )
     }
 }
 

@@ -5,14 +5,15 @@
 )]
 
 #[macro_use]
-extern crate lazy_static;
+mod logging;
+use logging::Timer;
 
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
+    collections::hash_map::DefaultHasher,
     env,
     fs::{self, File},
     hash::{Hash, Hasher},
-    io::{self, BufRead, BufWriter, Read, Write},
+    io::{self, BufRead, Read},
     path::{Path, PathBuf},
     process::Command,
     sync::{Arc, Mutex},
@@ -20,98 +21,17 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
-use once_cell::sync::OnceCell;
+use clap::Parser;
 use rayon::prelude::*;
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 use walkdir::WalkDir;
 
 mod wave;
 use wave::Data;
 
 mod config;
-use clap::Parser;
-use config::{Args, Config};
-
-mod parser;
-
 mod info;
-// use info::{Item, Map};
-
-mod logging;
-use logging::LogLevel;
-
-lazy_static! {
-    static ref STDERR: Arc<Mutex<StandardStream>> =
-        Arc::new(Mutex::new(StandardStream::stderr(ColorChoice::Always)));
-}
-
-macro_rules! debug {
-    ($($arg:tt)*) => {{
-        if get_global_log_level() <= LogLevel::Debug {
-            let mut stderr = STDERR.lock().unwrap();
-            let _ = stderr.set_color(ColorSpec::new().set_fg(Some(Color::Magenta))); // Set color to magenta for debug
-            let _ = writeln!(&mut *stderr, $($arg)*);
-            let _ = stderr.reset();
-        }
-    }};
-}
-
-macro_rules! info {
-    ($($arg:tt)*) => {{
-        if get_global_log_level() <= LogLevel::Info {
-            let mut stderr = StandardStream::stderr(ColorChoice::Always);
-            // let _ = stderr.set_color(ColorSpec::new().set_fg(Some(Color::)));
-            let _ = writeln!(&mut stderr, $($arg)*);
-            // let _ = stderr.reset();
-        }
-    }};
-}
-
-macro_rules! warn {
-    ($($arg:tt)*) => {{
-        if get_global_log_level() <= LogLevel::Warn {
-            let mut stderr = STDERR.lock().unwrap();
-            let _ = stderr.set_color(ColorSpec::new().set_fg(Some(Color::Yellow))); // Set color to yellow for warning
-            let _ = writeln!(&mut *stderr, $($arg)*);
-            let _ = stderr.reset();
-        }
-    }};
-}
-
-// Reusing your existing error macro
-macro_rules! error {
-    ($($arg:tt)*) => {{
-        if get_global_log_level() <= LogLevel::Error {
-            let mut stderr = STDERR.lock().unwrap();
-            let _ = stderr.set_color(ColorSpec::new().set_fg(Some(Color::Red))); // Set color to red
-            let _ = writeln!(&mut *stderr, $($arg)*);
-            let _ = stderr.reset();
-        }
-    }};
-}
-
-macro_rules! success {
-    ($($arg:tt)*) => {{
-        if get_global_log_level() <= LogLevel::Success {
-            let mut stderr = STDERR.lock().unwrap();
-            let _ = stderr.set_color(ColorSpec::new().set_fg(Some(Color::Green))); // Set color to blue for success
-            let _ = writeln!(&mut *stderr, $($arg)*);
-            let _ = stderr.reset();
-        }
-    }};
-}
-
-static LOG_LEVEL: OnceCell<LogLevel> = OnceCell::new();
-
-fn set_global_log_level(level: LogLevel) {
-    LOG_LEVEL
-        .set(level)
-        .expect("Log level has already been set");
-}
-
-fn get_global_log_level() -> LogLevel {
-    *LOG_LEVEL.get().unwrap_or(&LogLevel::Info) // Default to LogLevel::Log if not set
-}
+mod parser;
+mod timer;
 
 #[derive(Debug, Clone)]
 struct FilePath {
@@ -132,45 +52,50 @@ fn get_modification_date_string<P: AsRef<Path>>(path: P) -> std::io::Result<Stri
 }
 
 fn main() -> io::Result<()> {
-    let start_time = Instant::now(); // Record start time
-                                     // let args = Args::parse();
-                                     // let config = Config::load(&args.config)
-                                     //     .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+    let _timer = Timer::new("Main");
+    let config = {
+        let _timer = Timer::new("Loading Config");
+        let args = config::Args::parse();
+        let config = config::Config::load(&args.config)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?
+            .merge_with_args(args);
+        if config.indir.is_empty() {
+            error!("No input directory specified");
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "No input directory specified",
+            ));
+        }
+        config
+    };
+    let loglevel = {
+        let _timer = Timer::new("Setting Loglevel");
+        let logstring = config
+            .loglevel
+            .clone()
+            .unwrap_or("info".to_string().clone());
+        logging::LogLevel::from_str(&logstring).unwrap_or(logging::LogLevel::Info)
+    };
+    logging::set_loglevel(loglevel);
 
-    let args: Vec<String> = env::args().collect();
-    let parsed = parser::parse_args(args.as_ref());
-    if parsed.help {
-        info!(
-            "Usage: {} --indir=<directory> [--outdir=<output-file>] [--ffmpeg=<path-to-ffmpeg>] [--packages=<package1,package2,...>] [--no-mp4] [--bitrate=<bitrate>] [--skip-cache] [--loglevel=<debug|info|warn|error|silent>]",
-            args[0]
-        );
-        return Ok(());
-    }
-    set_global_log_level(parsed.loglevel);
+    let parsed = {
+        let _timer = Timer::new("Parsing Args");
+        let args = env::args().collect::<Vec<String>>();
+        parser::parse_args(&args)
+    };
 
-    if parsed.indir.is_empty() {
-        debug!(
-            "Usage: {} --indir=<directory> [--outdir=<output-file>]",
-            args[0]
-        );
-        return Ok(());
-    }
     if parsed.packages.is_empty() {
         info!("Encoding all packages");
     } else {
         info!("Encoding packages: {:?}", parsed.packages);
     };
-    debug!("Parsed args in {} ms", start_time.elapsed().as_millis());
-    run(&parsed)?;
-    let elapsed_time = start_time.elapsed();
-    let elapsed_ms = elapsed_time.as_secs() * 1000 + u64::from(elapsed_time.subsec_millis());
-    let elapsed = logging::duration(u128::from(elapsed_ms));
-    success!("Done in {elapsed}");
+    run(&parsed, loglevel)?;
+    success!("Done!");
     Ok(())
 }
 
 #[allow(clippy::too_many_lines)]
-fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
+fn run(parsed: &parser::ParsedArgs, loglevel: logging::LogLevel) -> io::Result<()> {
     let output_bitrate = parsed.bitrate;
     let now = Instant::now();
     let wav_files: Vec<PathBuf> = WalkDir::new(&parsed.indir)
@@ -472,7 +397,7 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
         }
         if did_reencode_source_files {
             info!("Had to reencode some source files, rerunning the program to recheck the source files");
-            return run(parsed);
+            return run(parsed, loglevel);
         }
         let files_that_cannot_be_fixed: Vec<String> = finfo
             .par_iter()
@@ -609,7 +534,7 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
             now.elapsed().as_micros() / num_sounds
         );
         debug!("Since the sample rates were converted, the program will now rerun to recheck the source files");
-        return run(parsed);
+        return run(parsed, loglevel);
     }
 
     debug!(
@@ -627,7 +552,7 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
         now.elapsed().as_micros() / num_sounds
     );
 
-    if parsed.loglevel == LogLevel::Debug {
+    if loglevel == logging::LogLevel::Debug {
         print_langs(&finfo);
     }
 
@@ -663,7 +588,7 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
             }
             *num_sounds_encoded.lock().unwrap() += 1;
             let ns = *num_sounds_encoded.lock().unwrap();
-            logging::log_progress(ns, num_sounds_to_encode, now, parsed.loglevel);
+            logging::log_progress(ns, num_sounds_to_encode, now, loglevel);
             Some(run_ffmpeg(&parsed.ffmpeg, info, parsed.include_mp4))
         })
         .collect();
@@ -707,7 +632,7 @@ fn run(parsed: &parser::ParsedArgs) -> io::Result<()> {
         now.elapsed().as_millis(),
     );
 
-    if parsed.loglevel == LogLevel::Debug {
+    if loglevel == logging::LogLevel::Debug {
         let now = Instant::now();
         map.save_cache_json()?;
         debug!(

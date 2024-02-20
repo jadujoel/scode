@@ -2,6 +2,7 @@ use crate::logging::LogLevel;
 
 
 #[allow(clippy::struct_excessive_bools)]
+#[derive(Debug)]
 pub struct ParsedArgs {
     pub indir: String,
     pub outdir: String,
