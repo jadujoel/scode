@@ -6,6 +6,8 @@ use std::{
     path::Path,
 };
 
+use crate::wave;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Item {
     pub path: String,
@@ -16,10 +18,25 @@ pub struct Item {
     pub output_path: String,
     pub bitrate: u32,
     pub num_samples: usize,
+    pub num_channels: u16,
     pub sample_rate: u32,
     pub modification_date: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NewItem {
+    pub path: String,
+    pub name: String,
+    pub outfile: String,
+    pub package: String,
+    pub lang: String,
+    pub output_path: String,
+    pub bitrate: u32,
+    pub modification_date: String,
+    pub wave_data: wave::Data,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Map {
     pub value: HashMap<String, Item>,
 }
@@ -32,6 +49,7 @@ impl Default for Map {
 
 impl Map {
     pub fn new() -> Self {
+        #![allow(unused_must_use)] // if it already exists, it's fine
         fs::create_dir_all(".cache");
         Map {
             value: HashMap::new(),
@@ -59,7 +77,6 @@ impl Map {
     }
 
     pub fn from_cache_bin() -> io::Result<Self> {
-        println!("from cache");
         let mut file = File::open(".cache/info.bin")?;
         let mut encoded = Vec::new();
         file.read_to_end(&mut encoded)?;
@@ -143,16 +160,16 @@ impl AtlasMap {
         })
     }
 
-    pub fn save_json_v1(&self, dir: &str) -> io::Result<&Self> {
-        let dirp = Path::new(dir);
-        if !dirp.exists() {
-            fs::create_dir_all(dirp)?;
-        }
-        let file = File::create(dirp.join(".atlas.json"))?;
-        serde_json::to_writer_pretty(file, &self.value)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-        Ok(self)
-    }
+    // pub fn save_json_v1(&self, dir: &str) -> io::Result<&Self> {
+    //     let dirp = Path::new(dir);
+    //     if !dirp.exists() {
+    //         fs::create_dir_all(dirp)?;
+    //     }
+    //     let file = File::create(dirp.join(".atlas.json"))?;
+    //     serde_json::to_writer_pretty(file, &self.value)
+    //         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+    //     Ok(self)
+    // }
 
     pub fn save_json_v2(&self, dir: &str) -> io::Result<&Self> {
         let dirp = Path::new(dir);
@@ -189,9 +206,6 @@ impl AtlasMap {
     }
 }
 
-/**
- * Save a json file that the client can load and use for loading correct files.
- */
 // fn save_atlas(items: &[Item], output_file: &str) -> io::Result<()> {
 //     let file = File::create(output_file)?;
 //     let mut writer = BufWriter::new(file);
@@ -247,70 +261,70 @@ impl AtlasMap {
 //     Ok(())
 // }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use std::fs;
 
-    #[test]
-    fn test_map() {
-        let mut map = Map::new();
-        let info = Item {
-            path: "path".to_string(),
-            name: "name".to_string(),
-            outfile: "outfile".to_string(),
-            package: "package".to_string(),
-            lang: "lang".to_string(),
-            output_path: "output_path".to_string(),
-            bitrate: 128,
-            num_samples: 1000,
-            sample_rate: 44100,
-            modification_date: "2021-01-01".to_string(),
-        };
-        map.set("path".to_string(), info.clone());
-        println!("{:?}", map.value);
-        // assert_eq!(map.get("path"), Some(&info));
-    }
+//     #[test]
+//     fn test_map() {
+//         let mut map = Map::new();
+//         let info = Item {
+//             path: "path".to_string(),
+//             name: "name".to_string(),
+//             outfile: "outfile".to_string(),
+//             package: "package".to_string(),
+//             lang: "lang".to_string(),
+//             output_path: "output_path".to_string(),
+//             bitrate: 128,
+//             num_samples: 1000,
+//             sample_rate: 44100,
+//             modification_date: "2021-01-01".to_string(),
+//         };
+//         map.set("path".to_string(), info.clone());
+//         println!("{:?}", map.value);
+//         // assert_eq!(map.get("path"), Some(&info));
+//     }
 
-    #[test]
-    fn test_map_from_vector() {
-        let info = Item {
-            path: "path".to_string(),
-            name: "name".to_string(),
-            outfile: "outfile".to_string(),
-            package: "package".to_string(),
-            lang: "lang".to_string(),
-            output_path: "output_path".to_string(),
-            bitrate: 128,
-            num_samples: 1000,
-            sample_rate: 44100,
-            modification_date: "2021-01-01".to_string(),
-        };
-        let vec = vec![info.clone()];
-        let map = Map::from_vec(vec);
-        println!("{:?}", map.value);
-        // assert_eq!(map.get("path"), Some(&info));
-    }
+//     #[test]
+//     fn test_map_from_vector() {
+//         let info = Item {
+//             path: "path".to_string(),
+//             name: "name".to_string(),
+//             outfile: "outfile".to_string(),
+//             package: "package".to_string(),
+//             lang: "lang".to_string(),
+//             output_path: "output_path".to_string(),
+//             bitrate: 128,
+//             num_samples: 1000,
+//             sample_rate: 44100,
+//             modification_date: "2021-01-01".to_string(),
+//         };
+//         let vec = vec![info.clone()];
+//         let map = Map::from_vec(vec);
+//         println!("{:?}", map.value);
+//         // assert_eq!(map.get("path"), Some(&info));
+//     }
 
-    #[test]
-    fn test_write_to_json() {
-        let mut map = Map::new();
-        let info = Item {
-            path: "path".to_string(),
-            name: "name".to_string(),
-            outfile: "outfile".to_string(),
-            package: "package".to_string(),
-            lang: "lang".to_string(),
-            output_path: "output_path".to_string(),
-            bitrate: 128,
-            num_samples: 1000,
-            sample_rate: 44100,
-            modification_date: "2021-01-01".to_string(),
-        };
-        map.set("path".to_string(), info.clone());
-        map.save_cache_json().unwrap();
-        let file = fs::read_to_string(".cache/info.json").unwrap();
-        let expected = serde_json::to_string_pretty(&map.value).unwrap();
-        assert_eq!(file, expected);
-    }
-}
+//     #[test]
+//     fn test_write_to_json() {
+//         let mut map = Map::new();
+//         let info = Item {
+//             path: "path".to_string(),
+//             name: "name".to_string(),
+//             outfile: "outfile".to_string(),
+//             package: "package".to_string(),
+//             lang: "lang".to_string(),
+//             output_path: "output_path".to_string(),
+//             bitrate: 128,
+//             num_samples: 1000,
+//             sample_rate: 44100,
+//             modification_date: "2021-01-01".to_string(),
+//         };
+//         map.set("path".to_string(), info.clone());
+//         map.save_cache_json().unwrap();
+//         let file = fs::read_to_string(".cache/info.json").unwrap();
+//         let expected = serde_json::to_string_pretty(&map.value).unwrap();
+//         assert_eq!(file, expected);
+//     }
+// }

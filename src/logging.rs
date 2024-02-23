@@ -15,6 +15,30 @@ pub fn get_loglevel() -> crate::logging::LogLevel {
     *LOG_LEVEL.get().unwrap_or(&LogLevel::Info)
 }
 
+pub fn is_debug() -> bool {
+    get_loglevel() <= LogLevel::Debug
+}
+
+pub fn is_perf() -> bool {
+    get_loglevel() <= LogLevel::Perf
+}
+
+// pub fn is_info() -> bool {
+//     get_loglevel() <= LogLevel::Info
+// }
+
+// pub fn is_warn() -> bool {
+//     get_loglevel() <= LogLevel::Warn
+// }
+
+// pub fn is_error() -> bool {
+//     get_loglevel() <= LogLevel::Error
+// }
+
+// pub fn is_success() -> bool {
+//     get_loglevel() <= LogLevel::Success
+// }
+
 #[macro_export]
 macro_rules! debug {
     ($($arg:tt)*) => {{
@@ -30,13 +54,43 @@ macro_rules! debug {
 }
 
 #[macro_export]
+macro_rules! perf {
+    ($($arg:tt)*) => {{
+        use termcolor::WriteColor;
+        use std::io::Write;
+        if $crate::logging::get_loglevel() <= $crate::logging::LogLevel::Perf {
+            let mut stderr = termcolor::StandardStream::stderr(termcolor::ColorChoice::Always);
+            let _ = stderr.set_color(termcolor::ColorSpec::new().set_fg(Some(termcolor::Color::Cyan)));
+            let _ = writeln!(&mut stderr, $($arg)*);
+            let _ = stderr.reset();
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! time {
+    ($label:expr, $block:block) => {{
+        let _timer = if $crate::logging::is_perf() {
+            Some($crate::logging::Timer::new($label))
+        } else {
+            None
+        };
+        // Execute the code block
+        let result = $block;
+
+        // _timer is dropped here if it was created, logging the elapsed time
+        result // Return the result of the block execution, if needed
+    }};
+}
+
+#[macro_export]
 macro_rules! info {
     ($($arg:tt)*) => {{
         use termcolor::WriteColor;
         use std::io::Write;
         if $crate::logging::get_loglevel() <= $crate::logging::LogLevel::Info {
             let mut stderr = termcolor::StandardStream::stderr(termcolor::ColorChoice::Always);
-            let _ = stderr.set_color(termcolor::ColorSpec::new().set_fg(Some(termcolor::Color::Blue)));
+            let _ = stderr.set_color(termcolor::ColorSpec::new().set_fg(Some(termcolor::Color::White)));
             let _ = writeln!(&mut stderr, $($arg)*);
             let _ = stderr.reset();
         }
@@ -88,6 +142,7 @@ macro_rules! success {
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum LogLevel {
     Debug,
+    Perf,
     Info,
     Success,
     Warn,
@@ -99,6 +154,7 @@ impl LogLevel {
     pub fn from_str(level: &str) -> Option<Self> {
         match level.to_lowercase().as_str() {
             "debug" => Some(Self::Debug),
+            "perf" => Some(Self::Perf),
             "info" => Some(Self::Info),
             "warn" => Some(Self::Warn),
             "error" => Some(Self::Error),
@@ -110,19 +166,18 @@ impl LogLevel {
 }
 
 pub fn log_progress(
-    ns: usize,
-    num_sounds_to_encode: usize,
     start: std::time::Instant,
-    log_level: LogLevel,
+    ns: usize,
+    n: usize,
 ) {
-    if log_level >= LogLevel::Info {
+    if get_loglevel() <= LogLevel::Info {
         let elapsed_time = start.elapsed().as_millis();
         let avg_time_per_sound = elapsed_time as f32 / ns as f32;
-        let remaining_sounds = num_sounds_to_encode - ns;
+        let remaining_sounds = n - ns;
         let remaining_time = (remaining_sounds as f32 * avg_time_per_sound) as u64;
-        let percentage = (ns as f32 / num_sounds_to_encode as f32) * 100.0;
-        println!(
-            "Encoding {ns} of {num_sounds_to_encode} ({percentage:.1}%) | ETA: {} seconds  \r",
+        let percentage = (ns as f32 / n as f32) * 100.0;
+        print!(
+            "Encoding {ns} of {n} ({percentage:.1}%) | ETA: {} seconds  \r",
             duration(u128::from(remaining_time))
         );
     }
@@ -146,8 +201,24 @@ pub fn duration(milliseconds: u128) -> String {
     }
 }
 
+pub fn duration_from_micros(micros: u128) -> String {
+    if micros < 1000 {
+        return format!("{micros}μs");
+    }
+    let milliseconds = micros / 1000;
+    duration(milliseconds)
+}
+
 use std::fmt;
 use std::time::Instant;
+
+lazy_static::lazy_static! {
+    static ref TIMINGS: std::sync::Mutex<Vec<(String, std::time::Duration)>> = std::sync::Mutex::new(Vec::new());
+}
+
+pub fn store_timing(label: String, duration: std::time::Duration) {
+    TIMINGS.lock().unwrap().push((label, duration));
+}
 
 pub struct Timer<'a> {
     label: &'a str,
@@ -156,7 +227,7 @@ pub struct Timer<'a> {
 
 impl<'a> Timer<'a> {
     pub fn new(label: &'a str) -> Self {
-        debug!("{label}");
+        // debug!("{label}");
         Self {
             label,
             start: Instant::now(),
@@ -180,6 +251,30 @@ impl<'a> fmt::Display for Timer<'a> {
 
 impl<'a> Drop for Timer<'a> {
     fn drop(&mut self) {
-        debug!("{} took {}", self.label, duration(self.elapsed_ms()));
+        // perf!("{} took {}", self.label, duration(self.elapsed_ms()));
+        let duration = self.start.elapsed();
+        store_timing(self.label.to_string(), duration);
+    }
+}
+
+pub fn display_timings() {
+    let timings: std::sync::MutexGuard<Vec<(String, std::time::Duration)>> = TIMINGS.lock().unwrap();
+    let mut timings: Vec<_> = timings.iter().collect();
+    timings.sort_by(|a, b| b.1.cmp(&a.1));
+
+    perf!("Times:");
+    let mut total = 0;
+    for (label, taken) in timings {
+        let micros = taken.as_micros();
+        perf!("{} [{}]", duration_from_micros(micros), label);
+        total += micros;
+    }
+    perf!("Total: {}", duration_from_micros(total));
+}
+pub struct TimingsDisplay;
+
+impl Drop for TimingsDisplay {
+    fn drop(&mut self) {
+        display_timings();
     }
 }
