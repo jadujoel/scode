@@ -2,7 +2,7 @@
   "name": "scode",
   "version": "1.0.0",
   "description": "encode sound files",
-  "main": "index.mjs",
+  "main": "lib.mjs",
   "bin": "index.mjs",
   "scripts": {
     "start": "node index.mjs"

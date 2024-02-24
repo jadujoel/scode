@@ -14,7 +14,7 @@ use std::{
     hash::{Hash, Hasher},
     io,
     path::Path,
-    process::Command,
+    process::{exit, Command},
     sync::{Arc, Mutex},
     time::Instant,
 };
@@ -80,10 +80,20 @@ fn main() -> io::Result<()> {
     debug!("{config}");
     debug!("{parsed:?}");
 
+    info!("Input directory: {}", config.indir);
+    info!("Output directory: {}", config.outdir);
+
+    time!("Create output directory", {
+        // check if it exists
+        if !Path::new(&config.outdir).exists() {
+            fs::create_dir_all(&config.outdir)?;
+        }
+    });
+
     if parsed.packages.is_empty() {
         info!("Encoding all packages");
     } else {
-        info!("Encoding packages: {:?}", config.packages.keys());
+        info!("Encoding packages: {:?}", parsed.packages);
     };
     let items = time!("Create Items", { create_items(&config) })?;
     let encode_result = time!("Encode", { encode_items(config.clone(), &items) });
@@ -102,12 +112,14 @@ fn main() -> io::Result<()> {
     let atlas = time!("Create Atlas", { info::AtlasMap::from_vec(&items) });
     time!("Save Atlas", {
         // atlas.save_json_v1(".cache")?;
-        atlas.save_json_v2("encoded")?;
+        atlas.save_json_v2(&config.outdir)?;
     });
 
     success!("Done in {}", duration(now.elapsed().as_millis()));
     Ok(())
 }
+
+static NO_LANG: &str = "_";
 
 #[allow(clippy::too_many_lines)]
 fn create_items(config: &Config) -> io::Result<Vec<Item>> {
@@ -166,20 +178,18 @@ fn create_items(config: &Config) -> io::Result<Vec<Item>> {
                             config,
                             use_cache,
                             &cache,
-                            &String::default(),
+                            &NO_LANG.to_string(),
                         )
                     })
                     .collect(); // Collect into Vec<Result<Item, io::Error>>
-                return Ok(items)
+                return Ok(items);
             }
             let langs = package_config.languages.clone().unwrap();
             let mut items: Vec<Result<Item, io::Error>> = Vec::new();
             for (lang, lang_dir) in langs {
                 let lang_path = package_sourcedir_path.join(Path::new(&lang_dir));
                 if !lang_path.is_dir() {
-                    let error_message = format!(
-                        "Language dir: {lang_path:?} is not a directory!",
-                    );
+                    let error_message = format!("Language dir: {lang_path:?} is not a directory!",);
                     return Err(io::Error::new(io::ErrorKind::NotFound, error_message));
                 }
                 let files = match fs::read_dir(lang_path) {
@@ -274,7 +284,7 @@ fn create_items(config: &Config) -> io::Result<Vec<Item>> {
             let ffmpeg = config.ffmpeg.clone().unwrap_or("ffmpeg".to_string());
             reencode_source_files(&fixable, &ffmpeg)?;
             info!(
-                "Some files have be reencoded, rerunning the program to recheck the source files"
+                "Some files had be reencoded, rerunning the program to recheck the source files"
             );
             return create_items(config);
         }
@@ -373,7 +383,7 @@ fn create_item_for_file(
                             );
 
                         let outfile = format!("{target_bitrate}kb.{target_channels}ch.{hash}.webm");
-                        let output_path = Path::new(&config.outdir).join(&outfile);
+                        let output_path = Path::new(&config.outdir).canonicalize()?.join(&outfile);
 
                         Ok(Item {
                             // Ensure to wrap the Item in Ok
@@ -473,13 +483,23 @@ fn print_langs(sound_info: &[info::Item]) {
     debug!("Languages: {langs:?}");
 }
 
-
 fn encode_items(config: Config, items: &[Item]) -> io::Result<()> {
     let items_to_encode: Vec<&info::Item> = time!("Encode: Check need", {
         items
             .par_iter()
             .filter(|info| !Path::new(&info.output_path).exists())
             .collect()
+    });
+    time!("Encode: Check ffmpeg exists", {
+        let ffmpeg = config.ffmpeg.clone().unwrap_or("ffmpeg".to_string());
+        // check if ffmpeg is installed
+        let ffmpeg_check = Command::new(&ffmpeg).arg("-version").output();
+        if let Err(e) = ffmpeg_check {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("ffmpeg not found at {}: {e}", &ffmpeg),
+            ));
+        }
     });
     let results = time!("Encode: Sounds", {
         info!(
@@ -493,8 +513,11 @@ fn encode_items(config: Config, items: &[Item]) -> io::Result<()> {
             config.include_mp4.unwrap_or(false),
         )
     });
-    let errors = results.par_iter().filter_map(|result| result.as_ref().err()).collect::<Vec<&io::Error>>();
-    if !errors.is_empty(){
+    let errors = results
+        .par_iter()
+        .filter_map(|result| result.as_ref().err())
+        .collect::<Vec<&io::Error>>();
+    if !errors.is_empty() {
         for error in errors {
             error!("{error}");
         }
@@ -531,20 +554,39 @@ fn encode_with_progress(
 }
 
 fn encode_one_item(ffmpeg: &str, info: &info::Item, include_mp4: bool) -> io::Result<()> {
-    let infile = Path::new(&info.path)
-        .canonicalize()?
-        .to_string_lossy()
-        .to_string();
-    let out_path = Path::new(&info.output_path);
-
-    if let Some(out_dir) = out_path.parent() {
-        if !out_dir.exists() {
-            // create the output directory if it doesn't exist
-            fs::create_dir_all(out_dir)?;
+    let infile = Path::new(&info.path);
+    let infile = match infile.canonicalize() {
+        Ok(path) => path,
+        Err(_) => {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("File not found: {}", infile.to_string_lossy()),
+            ));
         }
     }
+    .to_string_lossy()
+    .to_string();
 
-    let outfile = info.output_path.clone();
+    let format_file = |file: &str| {
+        format!("\"{file}\"")
+    };
+
+    // let infile = format_file(&infile);
+
+    let out_path = Path::new(&info.output_path);
+
+    // if let Some(out_dir) = out_path.parent() {
+    //     if !out_dir.exists() {
+    //         // create the output directory if it doesn't exist
+    //         fs::create_dir_all(out_dir)?;
+    //     }
+    // }
+    let outfile = out_path.to_string_lossy().to_string();
+    // let outfile = format_file(&outfile);
+
+    debug!("Encoding {infile}");
+    debug!("Encoding {outfile}");
+
     let is_stereo_to_mono = info.input_channels == 2 && info.target_channels == 1;
 
     // When specifying the bitrate in FFmpeg for audio encoding,
@@ -558,7 +600,7 @@ fn encode_one_item(ffmpeg: &str, info: &info::Item, include_mp4: bool) -> io::Re
     let mut command = Command::new(ffmpeg);
     let command = command
         .arg("-i")
-        .arg(&infile)
+        .arg(infile)
         .arg("-b:a")
         .arg(bitrate.to_string() + "k")
         .arg("-ar")
@@ -579,12 +621,32 @@ fn encode_one_item(ffmpeg: &str, info: &info::Item, include_mp4: bool) -> io::Re
         command
     };
 
-    let opus_output = command.arg("-c:a").arg("libopus").arg(outfile).output()?;
+    let opus_output_result = command
+        .arg("-c:a")
+        .arg("libopus")
+        .arg(&outfile)
+        .output();
 
-    if !opus_output.status.success() {
+    if let Err(e) = opus_output_result {
         return Err(io::Error::new(
             io::ErrorKind::Other,
-            "ffmpeg execution failed when encoding webm file",
+            format!(
+                "ffmpeg execution failed when encoding webm file {outfile} with error {e}",
+            ),
+        ));
+    }
+
+    let opus_output = opus_output_result.unwrap();
+    let status = opus_output.status;
+
+    if !status.success() {
+        warn!("command: {command:?}");
+        warn!("opus_output: {opus_output:?}");
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!(
+                "ffmpeg execution failed when encoding webm file {outfile} with status {status}",
+            ),
         ));
     }
 
@@ -592,14 +654,27 @@ fn encode_one_item(ffmpeg: &str, info: &info::Item, include_mp4: bool) -> io::Re
         return Ok(());
     }
 
-    let outfile = info.output_path.replace("webm", "mp4");
-    // write the mp4 file
-    let mp4_output = command.arg("-c:a").arg("aac").arg(outfile).output()?;
+    let outfile = outfile.clone().replace("webm", "mp4");
+    debug!("Encoding {outfile}");
 
-    if !mp4_output.status.success() {
+    // write the mp4 file
+    let mp4_output_result = command.arg("-c:a").arg("aac").arg(outfile.clone()).output();
+    if let Err(e) = mp4_output_result {
         return Err(io::Error::new(
             io::ErrorKind::Other,
-            "ffmpeg execution failed when encoding mp4 file",
+            format!(
+                "ffmpeg execution failed when encoding mp4 file {} with error {e}",
+                outfile.clone()
+            ),
+        ));
+    }
+    let status = mp4_output_result.unwrap().status;
+    if !status.success() {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!(
+                "ffmpeg execution failed when encoding mp4 file {outfile} with status {status}",
+            ),
         ));
     }
     Ok(())

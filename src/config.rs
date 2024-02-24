@@ -33,9 +33,9 @@ pub struct Source {
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 pub struct Args {
+    // Add optional command line arguments to override JSON configuration
     #[clap(long)]
     pub config: Option<String>,
-    // Add optional command line arguments to override JSON configuration
     #[clap(long)]
     pub indir: Option<String>,
     #[clap(long)]
@@ -171,7 +171,7 @@ fn join_path(a: &str, b: &str) -> String {
 /// Takes a string of jsonc content and returns a comment free version
 /// which should parse fine as regular json.
 /// Nested block comments are supported.
-/// preserve_locations will replace most comments with spaces, so that JSON parsing
+/// `preserve_locations` will replace most comments with spaces, so that JSON parsing
 /// errors should point to the right location.
 pub fn strip_jsonc_comments(jsonc_input: &str, preserve_locations: bool) -> String {
     let mut json_output = String::new();

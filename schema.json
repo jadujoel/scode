@@ -35,7 +35,7 @@
       "description": "Definition of packages and their specific configurations."
     }
   },
-  "required": ["indir", "outdir", "bitrate", "packages"],
+  "required": ["packages"],
   "definitions": {
     "package": {
       "type": "object",
@@ -84,7 +84,6 @@
           "description": "Optional. Number of audio channels for this source, default is same number of channels as the source."
         }
       },
-      "required": ["bitrate"],
       "additionalProperties": false
     }
   }
