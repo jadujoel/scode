@@ -18,7 +18,8 @@ pub struct Item {
     pub output_path: String,
     pub bitrate: u32,
     pub num_samples: usize,
-    pub num_channels: u16,
+    pub input_channels: u16,
+    pub target_channels: u16,
     pub sample_rate: u32,
     pub modification_date: String,
 }

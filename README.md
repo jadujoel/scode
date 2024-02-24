@@ -117,6 +117,14 @@ npx scode --indir="packages" --outdir="encoded" --bitrate=64 --ffmpeg="<path_to_
 - `--no-include-mp4` - do not encode mp4 files, only webm
 - `--yes` - do not ask for confirmation when overwriting input files with 48khz
 
+## Development
+
+### Running the app
+
+```bash
+cargo run --release -- --indir=../sounds --loglevel=perf --packages=common --packages=localisationprototype --use-cache=false
+```
+
 ## Notes
 
 If encoding mono sound, should it be 48kbit vs 96kbit for stereo?

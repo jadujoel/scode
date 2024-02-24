@@ -114,7 +114,6 @@ impl Data {
             ));
         }
         if (num_samples * format.block_align as usize) as u32 != data_chunk_size {
-            eprintln!("Data chunk size is invalid");
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Data chunk size is invalid",

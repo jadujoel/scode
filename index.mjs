@@ -25,7 +25,7 @@ export function binary() {
  * @param {string[]} args
  */
 export function encode(args) {
-  const child = spawn('./target/release/scode', [...args, `--ffmpeg=${path}`, '-y'])
+  const child = spawn('./target/release/scode', [...args, `--ffmpeg=${path}`, '--yes=true'])
   child.stdout.on('data', (data) => {
     process.stdout.write(data.toString());
   })

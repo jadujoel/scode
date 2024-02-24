@@ -12,6 +12,7 @@ pub struct Config {
     pub packages: HashMap<String, Package>,
     pub ffmpeg: Option<String>,
     pub include_mp4: Option<bool>,
+    pub use_cache: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -51,6 +52,8 @@ pub struct Args {
     pub ffmpeg: Option<String>,
     #[clap(long)]
     pub include_mp4: Option<bool>,
+    #[clap(long)]
+    pub use_cache: Option<bool>,
 }
 
 impl Config {
@@ -59,6 +62,7 @@ impl Config {
         let mut file = File::open(path)?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
+        let contents = strip_jsonc_comments(&contents, false);
         let config: Config = serde_json::from_str(&contents)?;
         Ok(config)
     }
@@ -74,12 +78,15 @@ impl Config {
                 Some(packages) => self
                     .packages
                     .into_iter()
-                    .filter(|(k, _)| packages.contains(k))
+                    .filter(|(k, _)| {
+                        packages.contains(k)
+                    })
                     .collect(),
                 None => self.packages,
             },
             ffmpeg: args.ffmpeg.or(self.ffmpeg),
             include_mp4: args.include_mp4.or(self.include_mp4).or(Some(false)),
+            use_cache: args.use_cache.or(self.use_cache),
         }
     }
 }
@@ -95,6 +102,7 @@ impl std::default::Default for Config {
             packages: HashMap::new(),
             ffmpeg: Some("ffmpeg".to_string()),
             include_mp4: Some(false),
+            use_cache: Some(false),
         }
     }
 }
@@ -158,4 +166,81 @@ impl fmt::Display for Config {
 
 fn join_path(a: &str, b: &str) -> String {
     Path::new(a).join(b).to_str().unwrap_or("").to_string()
+}
+
+/// Takes a string of jsonc content and returns a comment free version
+/// which should parse fine as regular json.
+/// Nested block comments are supported.
+/// preserve_locations will replace most comments with spaces, so that JSON parsing
+/// errors should point to the right location.
+pub fn strip_jsonc_comments(jsonc_input: &str, preserve_locations: bool) -> String {
+    let mut json_output = String::new();
+
+    let mut block_comment_depth: u8 = 0;
+    let mut is_in_string: bool = false; // Comments cannot be in strings
+
+    for line in jsonc_input.split('\n') {
+        let mut last_char: Option<char> = None;
+        for cur_char in line.chars() {
+            // Check whether we're in a string
+            if block_comment_depth == 0 && last_char != Some('\\') && cur_char == '"' {
+                is_in_string = !is_in_string;
+            }
+
+            // Check for line comment start
+            if !is_in_string && last_char == Some('/') && cur_char == '/' {
+                last_char = None;
+                if preserve_locations {
+                    json_output.push_str("  ");
+                }
+                break; // Stop outputting or parsing this line
+            }
+            // Check for block comment start
+            if !is_in_string && last_char == Some('/') && cur_char == '*' {
+                block_comment_depth += 1;
+                last_char = None;
+                if preserve_locations {
+                    json_output.push_str("  ");
+                }
+            // Check for block comment end
+            } else if !is_in_string && last_char == Some('*') && cur_char == '/' {
+                if block_comment_depth > 0 {
+                    block_comment_depth -= 1;
+                }
+                last_char = None;
+                if preserve_locations {
+                    json_output.push_str("  ");
+                }
+            // Output last char if not in any block comment
+            } else {
+                if block_comment_depth == 0 {
+                    if let Some(last_char) = last_char {
+                        json_output.push(last_char);
+                    }
+                } else {
+                    if preserve_locations {
+                        json_output.push_str(" ");
+                    }
+                }
+                last_char = Some(cur_char);
+            }
+        }
+
+        // Add last char and newline if not in any block comment
+        if let Some(last_char) = last_char {
+            if block_comment_depth == 0 {
+                json_output.push(last_char);
+            } else if preserve_locations {
+                json_output.push(' ');
+            }
+        }
+
+        // Remove trailing whitespace from line
+        while json_output.ends_with(' ') {
+            json_output.pop();
+        }
+        json_output.push('\n');
+    }
+
+    json_output
 }

@@ -27,7 +27,6 @@ pub fn parse_args(args: &[String]) -> ParsedArgs {
     let mut skip_cache = false;
     let mut loglevel = LogLevel::Info;
     let mut help = false;
-
     for arg in args.iter().skip(1) {
         match arg {
             a if a == "-h" || a == "--help" => {
