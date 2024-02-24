@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Encoder Configuration",
+  "description": "Schema for validating encoder configuration files.",
+  "type": "object",
+  "properties": {
+    "indir": {
+      "type": "string",
+      "description": "Directory where the encoder looks for packages."
+    },
+    "outdir": {
+      "type": "string",
+      "description": "Directory where the encoder outputs the encoded files."
+    },
+    "bitrate": {
+      "type": "integer",
+      "description": "Bitrate is per channel. For mono, it will be the specified bitrate, for stereo, double the specified bitrate."
+    },
+    "yes": {
+      "type": "boolean",
+      "description": "If true, the encoder will not ask for confirmation before re-encoding and overwriting faulty source files. Default is false.",
+      "default": false
+    },
+    "loglevel": {
+      "type": "string",
+      "description": "Logging level. Default is 'info'. Can be 'debug', 'error', or 'silent'.",
+      "enum": ["debug", "info", "warn", "error", "success", "silent"],
+      "default": "info"
+    },
+    "packages": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/package"
+      },
+      "description": "Definition of packages and their specific configurations."
+    }
+  },
+  "required": ["indir", "outdir", "bitrate", "packages"],
+  "definitions": {
+    "package": {
+      "type": "object",
+      "properties": {
+        "sourcedir": {
+          "type": "string",
+          "description": "Optional. Directory where the sounds for this package are located."
+        },
+        "bitrate": {
+          "type": "integer",
+          "description": "Optional. Bitrate for this package, overriding the default."
+        },
+        "extends": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional. List of packages this one extends from. Currently does nothing."
+        },
+        "languages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Optional. Language codes and their associated directories."
+        },
+        "sources": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/source"
+          },
+          "description": "Optional. Specific source files with overridden bitrate or channels."
+        }
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "bitrate": {
+          "type": "integer",
+          "description": "Bitrate for this source, possibly overriding the default or package bitrate."
+        },
+        "channels": {
+          "type": "integer",
+          "description": "Optional. Number of audio channels for this source, default is same number of channels as the source."
+        }
+      },
+      "required": ["bitrate"],
+      "additionalProperties": false
+    }
+  }
+}

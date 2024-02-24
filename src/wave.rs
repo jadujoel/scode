@@ -1,7 +1,8 @@
 use std::io::{self, Cursor, Read};
 use byteorder::{LittleEndian, ReadBytesExt};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FormatChunk {
     pub audio_format: u16,
     pub num_channels: u16,
@@ -24,7 +25,7 @@ impl FormatChunk {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Data {
     pub format: FormatChunk,
     pub num_samples: usize,
@@ -53,7 +54,6 @@ impl Data {
 
         let mut found_data_chunk = false;
         if buffer.len() < 36 {
-            eprintln!("Buffer is too small");
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Buffer is too small",
@@ -77,7 +77,6 @@ impl Data {
                             }
                         }
                         None => {
-                            eprintln!("Format chunk not found");
                             return Err(io::Error::new(
                                 io::ErrorKind::NotFound,
                                 "Format chunk not found",
@@ -97,7 +96,6 @@ impl Data {
             }
         }
         if !found_data_chunk {
-            eprintln!("Data chunk not found");
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
                 "Data chunk not found",
@@ -116,7 +114,6 @@ impl Data {
             ));
         }
         if (num_samples * format.block_align as usize) as u32 != data_chunk_size {
-            eprintln!("Data chunk size is invalid");
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Data chunk size is invalid",
