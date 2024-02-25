@@ -43,19 +43,16 @@ jobs:
 
       - name: Upload artifacts
         run: |
-          git status
-          ls -l
-          ls -l artifacts || true
-          git add artifacts/* || true
-          CHANGES=$(git diff --name-only)
+          CHANGES=$(git status artifacts --short)
           if [ -n "$CHANGES" ]; then
             echo "Changes detected"
+            echo "$CHANGES"
             git config user.name github-actions
             git config user.email github-actions@github.com
+            git add artifacts/*
             git commit -m "action: add artifacts"
             git push origin HEAD:artifacts --follow-tags
           else
             echo "No changes detected"
             exit 0
           fi
-          git status
