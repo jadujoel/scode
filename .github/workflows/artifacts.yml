@@ -47,7 +47,7 @@ jobs:
           ls -l
           ls -l artifacts || true
           git add artifacts/* || true
-          CHANGES=$(git diff --name-only || false)
+          CHANGES=$(git diff --name-only)
           if [ -n "$CHANGES" ]; then
             echo "Changes detected"
             git config user.name github-actions
