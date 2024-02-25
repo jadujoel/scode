@@ -3,26 +3,16 @@ name: version
 on:
   workflow_dispatch:
     inputs:
-      version_type:
+      type:
         type: choice
-        description: 'Version to update package.json to'
         required: true
-        default: 'prepatch'
+        default: 'alpha'
+        description: Which type of release
         options:
-          - 'prepatch'
-          - 'patch'
-          - 'preminor'
-          - 'minor'
-          - 'premajor'
-          - 'major'
-      alpha:
-        type: choice
-        description: 'If this is a pre-release, set to true to tag as alpha'
-        required: true
-        default: "true"
-        options:
-          - true
-          - false
+        - alpha
+        - patch
+        - minor
+        - major
 jobs:
   bump_version:
     runs-on: ubuntu-latest
@@ -39,12 +29,12 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           echo "Current version: $(node -p "require('./package.json').version")"
-          if [ "${{ github.event.inputs.alpha }}" = "true" ]; then
-            echo "Pre-release: ${{ github.event.inputs.version_type }}-alpha"
-            npm version ${{ github.event.inputs.version_type }} --tag=alpha
+          if [ "${{ github.event.inputs.type }}" = "alpha" ]; then
+            echo "Pre-release: ${{ github.event.inputs.type }}-alpha"
+            npm version prerelease --preid=alpha --tag=alpha
           else
-            echo "Stable release: ${{ github.event.inputs.version_type }}"
-            npm version ${{ github.event.inputs.version_type }}
+            echo "Stable release: ${{ github.event.inputs.type }}"
+            npm version ${{ github.event.inputs.type }}
           fi
           echo "Updated version to $(node -p "require('./package.json').version")"
           git push --follow-tags
