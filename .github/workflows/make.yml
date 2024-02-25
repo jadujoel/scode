@@ -34,40 +34,15 @@ jobs:
         with:
           token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Set up git
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          echo "TAG_NAME=$(date +v%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-          echo "CURRENT_BRANCH=$(echo $GITHUB_REF | awk -F'/' '{print $3}')" >> $GITHUB_ENV
-          echo Branch: "$CURRENT_BRANCH"
-          echo Tag: "$TAG_NAME"
-
       - name: Download all artifacts
         uses: actions/download-artifact@v2
         with:
           path: artifacts/
 
-      # - name: Zip artifacts
-        # run: zip -r artifacts.zip artifacts/
-
-      - name: Upload combined artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: artifacts
-          path: artifacts
-
       - name: Commit and push the artifacts
         run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
           git add artifacts
           git commit -m "action: add artifacts"
           git push origin HEAD:artifacts --follow-tags
-
-      # - name: Create and Push Tag if Not Exists
-      #   run: |
-      #     if ! git rev-parse $TAG_NAME >/dev/null 2>&1; then
-      #       git tag $TAG_NAME
-      #       git push origin $TAG_NAME
-      #     fi
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
