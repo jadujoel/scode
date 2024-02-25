@@ -18,13 +18,34 @@ Unless the `--yes=false` flag is used, then it will first ask if the user wants 
 
 ## Quick start
 
+Install the package:
+
+```bash
+mkdir example
+cd example
+npm init --yes
+npm install @jadujoel/scode
+```
+
+Copy the example to your project root:
+
+```bash
+cp node_modules/@jadujoel/scode/example/* .
+```
+
 Run:
 
 ```bash
-npm run example
+npm run start
 ```
 
-And open localhost:3000 in your browser.
+Or instead of above copy and run this oneliner
+
+```bash
+mkdir example && cd example && npm init --yes && npm install @jadujoel/scode && cp -R node_modules/@jadujoel/scode/example/* . && npm run start
+```
+
+And open `http://localhost:3000` in your browser.
 
 ## Quick Setup of your own project
 
