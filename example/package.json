@@ -11,6 +11,6 @@
   "author": "joel.lof@icloud.com",
   "license": "MIT",
   "devDependencies": {
-    "@jadujoel/scode": "1.2.0"
+    "@jadujoel/scode": "1.2.2"
   }
 }

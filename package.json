@@ -19,6 +19,7 @@
     "artifacts",
     "index.mjs",
     "lib.mjs",
-    "schema.json"
+    "schema.json",
+    "postinstall.bash"
   ]
 }
