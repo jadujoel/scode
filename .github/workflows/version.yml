@@ -3,14 +3,14 @@ name: version
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
     inputs:
       version:
         type: choice
         description: 'Version to update package.json to'
         required: true
-        default: 'patch'
+        default: 'prepatch'
         options:
           - 'prepatch'
           - 'patch'

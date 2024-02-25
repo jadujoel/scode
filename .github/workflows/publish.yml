@@ -19,6 +19,10 @@ jobs:
           token: ${{ secrets.PAT_TOKEN }}
           fetch-depth: 0
 
+      - name: VERSION
+        run: |
+          node -p "require('./package.json').version"
+
       - name: Fetch artifacts branch
         run: |
           git config user.name github-actions
