@@ -156,8 +156,3 @@ Encoding all packages
 Encoding 2591 of 2591 (100%) | ETA: 0 seconds
 Encoded 2591 sounds in 1m 7s 494ms
 
-## Times
-
-hash: 9 microseconds per file
-wave data: 1.5ms per file
-encoding: 1.5s per file?
