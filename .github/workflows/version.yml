@@ -18,7 +18,7 @@ on:
       alpha:
         type: choice
         description: 'If this is a pre-release, set to true to tag as alpha'
-        required: false
+        required: true
         default: "true"
         options:
           - true
