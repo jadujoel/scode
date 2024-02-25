@@ -146,7 +146,6 @@ jobs:
           name: ubuntu_arm
           path: target/arm-unknown-linux-gnueabi/release/scode
 
-
   combine_artifacts:
     needs: [macos_arm, macos_x86, windows_x86, windows_arm, ubuntu_x86, ubuntu_arm]
     runs-on: ubuntu-latest
@@ -165,3 +164,37 @@ jobs:
         with:
           name: artifacts
           path: artifacts.zip
+
+  release:
+    needs: [combine_artifacts]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download combined artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: artifacts
+          path: artifacts.zip
+
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release ${{ github.run_number }}
+          body: |
+            Changes in this Release
+          draft: false
+          prerelease: false
+
+      - name: Upload release asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts.zip
+          asset_name: artifacts.zip
+          asset_content_type: application/zip
