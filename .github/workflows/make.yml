@@ -4,108 +4,129 @@ on:
   workflow_dispatch:
 
 jobs:
-  macos_arm:
-    runs-on: macos-latest
-    environment: scode
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        target: aarch64-apple-darwin
-        override: true
-    - uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release --target aarch64-apple-darwin
-    - name: codesign
-      run: bash codesign.sh "aarch64-apple-darwin/release"
-      env:
-        API_KEY_ID: ${{ secrets.API_KEY_ID }}
-        API_KEY_ISSUER_ID: ${{ secrets.API_KEY_ISSUER_ID }}
-        API_KEY_BASE64: ${{ secrets.API_KEY_BASE64 }}
-        APP_NAME: ${{ secrets.APP_NAME }}
-        BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
-        DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}
-        P12_BASE64: ${{ secrets.P12_BASE64 }}
-        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-        TEAM_ID: ${{ secrets.TEAM_ID }}
-        YOUR_NAME: ${{ secrets.YOUR_NAME }}
-    - uses: actions/upload-artifact@v2
-      with:
-        name: macos_arm
-        path: target/aarch64-apple-darwin/release/scode
+#   macos_arm:
+#     runs-on: macos-latest
+#     environment: scode
+#     steps:
+#     - uses: actions/checkout@v2
+#     - uses: actions-rs/toolchain@v1
+#       with:
+#         profile: minimal
+#         toolchain: stable
+#         target: aarch64-apple-darwin
+#         override: true
+#     - uses: actions-rs/cargo@v1
+#       with:
+#         command: build
+#         args: --release --target aarch64-apple-darwin
+#     - name: codesign
+#       run: bash codesign.sh "aarch64-apple-darwin/release"
+#       env:
+#         API_KEY_ID: ${{ secrets.API_KEY_ID }}
+#         API_KEY_ISSUER_ID: ${{ secrets.API_KEY_ISSUER_ID }}
+#         API_KEY_BASE64: ${{ secrets.API_KEY_BASE64 }}
+#         APP_NAME: ${{ secrets.APP_NAME }}
+#         BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
+#         DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}
+#         P12_BASE64: ${{ secrets.P12_BASE64 }}
+#         P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+#         TEAM_ID: ${{ secrets.TEAM_ID }}
+#         YOUR_NAME: ${{ secrets.YOUR_NAME }}
+#     - uses: actions/upload-artifact@v2
+#       with:
+#         name: macos_arm
+#         path: target/aarch64-apple-darwin/release/scode
 
-  macos_x86:
-    runs-on: macos-latest
-    environment: scode
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
-    - uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release
-    - name: codesign
-      run: bash codesign.sh "release"
-      env:
-        API_KEY_ID: ${{ secrets.API_KEY_ID }}
-        API_KEY_ISSUER_ID: ${{ secrets.API_KEY_ISSUER_ID }}
-        API_KEY_BASE64: ${{ secrets.API_KEY_BASE64 }}
-        APP_NAME: ${{ secrets.APP_NAME }}
-        BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
-        DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}
-        P12_BASE64: ${{ secrets.P12_BASE64 }}
-        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-        TEAM_ID: ${{ secrets.TEAM_ID }}
-        YOUR_NAME: ${{ secrets.YOUR_NAME }}
-    - uses: actions/upload-artifact@v2
-      with:
-        name: macos_x86
-        path: target/release/scode
+#   macos_x86:
+#     runs-on: macos-latest
+#     environment: scode
+#     steps:
+#     - uses: actions/checkout@v2
+#     - uses: actions-rs/toolchain@v1
+#       with:
+#         profile: minimal
+#         toolchain: stable
+#         override: true
+#     - uses: actions-rs/cargo@v1
+#       with:
+#         command: build
+#         args: --release
+#     - name: codesign
+#       run: bash codesign.sh "release"
+#       env:
+#         API_KEY_ID: ${{ secrets.API_KEY_ID }}
+#         API_KEY_ISSUER_ID: ${{ secrets.API_KEY_ISSUER_ID }}
+#         API_KEY_BASE64: ${{ secrets.API_KEY_BASE64 }}
+#         APP_NAME: ${{ secrets.APP_NAME }}
+#         BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
+#         DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}
+#         P12_BASE64: ${{ secrets.P12_BASE64 }}
+#         P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+#         TEAM_ID: ${{ secrets.TEAM_ID }}
+#         YOUR_NAME: ${{ secrets.YOUR_NAME }}
+#     - uses: actions/upload-artifact@v2
+#       with:
+#         name: macos_x86
+#         path: target/release/scode
 
-  windows_x86:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        target: x86_64-pc-windows-msvc
-        override: true
-    - uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release --target x86_64-pc-windows-msvc
-    - uses: actions/upload-artifact@v2
-      with:
-        name: windows_x86
-        path: target/x86_64-pc-windows-msvc/release/scode.exe
+#   windows_x86:
+#     runs-on: windows-latest
+#     steps:
+#     - uses: actions/checkout@v2
+#     - uses: actions-rs/toolchain@v1
+#       with:
+#         profile: minimal
+#         toolchain: stable
+#         target: x86_64-pc-windows-msvc
+#         override: true
+#     - uses: actions-rs/cargo@v1
+#       with:
+#         command: build
+#         args: --release --target x86_64-pc-windows-msvc
+#     - uses: actions/upload-artifact@v2
+#       with:
+#         name: windows_x86
+#         path: target/x86_64-pc-windows-msvc/release/scode.exe
 
-  windows_arm:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        target: aarch64-pc-windows-msvc
-        override: true
-    - uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release --target aarch64-pc-windows-msvc
-    - uses: actions/upload-artifact@v2
-      with:
-        name: windows_arm
-        path: target/aarch64-pc-windows-msvc/release/scode.exe
+#   windows_arm:
+#     runs-on: windows-latest
+#     steps:
+#     - uses: actions/checkout@v2
+#     - uses: actions-rs/toolchain@v1
+#       with:
+#         profile: minimal
+#         toolchain: stable
+#         target: aarch64-pc-windows-msvc
+#         override: true
+#     - uses: actions-rs/cargo@v1
+#       with:
+#         command: build
+#         args: --release --target aarch64-pc-windows-msvc
+#     - uses: actions/upload-artifact@v2
+#       with:
+#         name: windows_arm
+#         path: target/aarch64-pc-windows-msvc/release/scode.exe
+
+#   ubuntu_arm:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2
+#       - uses: actions-rs/toolchain@v1
+#         with:
+#           profile: minimal
+#           toolchain: stable
+#           target: arm-unknown-linux-gnueabi
+#           override: true
+#       - name: Install ARM GCC
+#         run: sudo apt-get update && sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
+#       - uses: actions-rs/cargo@v1
+#         with:
+#           command: build
+#           args: --release --target arm-unknown-linux-gnueabi
+#       - uses: actions/upload-artifact@v2
+#         with:
+#           name: ubuntu_arm
+#           path: target/arm-unknown-linux-gnueabi/release/scode
 
   ubuntu_x86:
     runs-on: ubuntu-latest
@@ -125,31 +146,20 @@ jobs:
         name: ubuntu_x86
         path: target/release/scode
 
-  ubuntu_arm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: arm-unknown-linux-gnueabi
-          override: true
-      - name: Install ARM GCC
-        run: sudo apt-get update && sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target arm-unknown-linux-gnueabi
-      - uses: actions/upload-artifact@v2
-        with:
-          name: ubuntu_arm
-          path: target/arm-unknown-linux-gnueabi/release/scode
-
   combine_artifacts:
-    needs: [macos_arm, macos_x86, windows_x86, windows_arm, ubuntu_x86, ubuntu_arm]
+    needs: [
+    #   macos_arm,
+    #   macos_x86,
+    #   windows_x86,
+    #   windows_arm,
+    #   ubuntu_arm,
+      ubuntu_x86
+    ]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
       - name: Download all artifacts
         uses: actions/download-artifact@v2
         with:
@@ -165,19 +175,34 @@ jobs:
           name: artifacts
           path: artifacts.zip
 
-  release:
-    needs: [combine_artifacts]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download combined artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: artifacts
-          path: artifacts.zip
+      - name: Set up Git Tag
+        id: tag_setup
+        run: |
+          TAG_NAME=$(date +v%Y%m%d-%H%M%S) # Example tag based on date and time. Customize as needed.
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "::set-output name=tag::$TAG_NAME"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if Tag Exists
+        id: check_tag
+        run: |
+          if git rev-parse $TAG_NAME >/dev/null 2>&1; then
+            echo "::set-output name=exists::true"
+          else
+            echo "::set-output name=exists::false"
+          fi
+
+      - name: Create and Push Tag if Not Exists
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
 
       - name: Create Release and Upload Asset
-        uses: softprops/action-gh-release@v0.1.15
+        uses: softprops/action-gh-release@v1
         with:
-          files: ./artifacts.zip
+          files: artifacts.zip
+          tag_name: ${{ steps.tag_setup.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
