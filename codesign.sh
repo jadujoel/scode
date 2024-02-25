@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# !!!! make sure you gitignore .codesign and .env file !!!!!!
+# !!!! make sure you gitignore .codesign folder and .env file !!!!!!
 
 # Codesign requires some setup locally
 # Before the github action can be run, you need to create a .p12 file and a .certSigningRequest file

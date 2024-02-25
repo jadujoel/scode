@@ -1,15 +1,143 @@
 name: artifacts
 
+## This workflow will build and sign the application for all platforms
+## and upload the artifacts to the artifacts branch
+## On the condition that the source code or this file is changed
+
 on:
   workflow_dispatch:
   push:
     branches:
-      - actions
-    # only run if there are changes in the source code or if this file is changed
+      - master
     paths:
       - 'src/**'
       - '.github/workflows/artifacts.yml'
+
 jobs:
+  macos_arm:
+    runs-on: macos-latest
+    environment: scode
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: aarch64-apple-darwin
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target aarch64-apple-darwin
+    - name: codesign
+      run: bash codesign.sh "aarch64-apple-darwin/release"
+      env:
+        API_KEY_ID: ${{ secrets.API_KEY_ID }}
+        API_KEY_ISSUER_ID: ${{ secrets.API_KEY_ISSUER_ID }}
+        API_KEY_BASE64: ${{ secrets.API_KEY_BASE64 }}
+        APP_NAME: ${{ secrets.APP_NAME }}
+        BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
+        DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}
+        P12_BASE64: ${{ secrets.P12_BASE64 }}
+        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        TEAM_ID: ${{ secrets.TEAM_ID }}
+        YOUR_NAME: ${{ secrets.YOUR_NAME }}
+    - uses: actions/upload-artifact@v2
+      with:
+        name: macos_arm
+        path: target/aarch64-apple-darwin/release/scode
+
+  macos_x86:
+    runs-on: macos-latest
+    environment: scode
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release
+    - name: codesign
+      run: bash codesign.sh "release"
+      env:
+        API_KEY_ID: ${{ secrets.API_KEY_ID }}
+        API_KEY_ISSUER_ID: ${{ secrets.API_KEY_ISSUER_ID }}
+        API_KEY_BASE64: ${{ secrets.API_KEY_BASE64 }}
+        APP_NAME: ${{ secrets.APP_NAME }}
+        BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
+        DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}
+        P12_BASE64: ${{ secrets.P12_BASE64 }}
+        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        TEAM_ID: ${{ secrets.TEAM_ID }}
+        YOUR_NAME: ${{ secrets.YOUR_NAME }}
+    - uses: actions/upload-artifact@v2
+      with:
+        name: macos_x86
+        path: target/release/scode
+
+  windows_x86:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: x86_64-pc-windows-msvc
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target x86_64-pc-windows-msvc
+    - uses: actions/upload-artifact@v2
+      with:
+        name: windows_x86
+        path: target/x86_64-pc-windows-msvc/release/scode.exe
+
+  windows_arm:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: aarch64-pc-windows-msvc
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target aarch64-pc-windows-msvc
+    - uses: actions/upload-artifact@v2
+      with:
+        name: windows_arm
+        path: target/aarch64-pc-windows-msvc/release/scode.exe
+
+  ubuntu_arm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: arm-unknown-linux-gnueabi
+          override: true
+      - name: Install ARM GCC
+        run: sudo apt-get update && sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target arm-unknown-linux-gnueabi
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ubuntu_arm
+          path: target/arm-unknown-linux-gnueabi/release/scode
+
   ubuntu_x86:
     runs-on: ubuntu-latest
     steps:
@@ -29,7 +157,14 @@ jobs:
           path: target/release/scode
 
   push_artifacts:
-    needs: [ubuntu_x86]
+    needs: [
+        macos_arm,
+        macos_x86,
+        windows_x86,
+        windows_arm,
+        ubuntu_arm,
+        ubuntu_x86
+    ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,12 +176,10 @@ jobs:
         with:
           path: artifacts/
 
-      - name: Upload artifacts
+      - name: Upload if binary changed
         run: |
           CHANGES=$(git status artifacts --short)
           if [ -n "$CHANGES" ]; then
-            echo "Changes detected"
-            echo "$CHANGES"
             git config user.name github-actions
             git config user.email github-actions@github.com
             git add artifacts/*
