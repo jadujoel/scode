@@ -8,21 +8,23 @@ export function scode() {
             return "target/release/scode"
         }
         const platform = process.platform
-        const arch = process.arch
+        const arm = process.arch.includes('arm')
         if (platform === 'win32') {
-            if (arch === 'ia32') return "binaries/win_x86/scode.exe"
-            if (arch === 'x64') return "binaries/win_x86_64/scode.exe"
+            return arm
+                ? "artifacts/windows_arm/scode.exe"
+                : "artifacts/windows_x86/scode.exe"
         }
         if (platform === 'linux') {
-            if (arch === 'x64') return "binaries/linux_x86_64/scode"
-            if (arch === 'arm') return "binaries/linux_arm/scode"
+            return arm
+                ? "artifacts/ubuntu_arm/scode"
+                : "artifacts/ubuntu_x86/scode"
         }
         if (platform === 'darwin') {
-            if (arch === 'x64') return "binaries/macos_x86_64/scode.app/Contents/MacOS/scode"
-            // if (arch === 'arm64') return "binaries/macos_arm64/scode.app/Contents/MacOS/scode"
-            if (arch === 'arm64') return "binaries/macos_arm64/scode.app/Contents/MacOS/scode"
+            return arm
+                ? "artifacts/macos_arm/scode"
+                : "artifacts/macos_x86/scode"
         }
-        return "not_found"
+        return "unsupported platform/architecture"
     }
 }
 
@@ -31,19 +33,22 @@ export function ffmpeg() {
     function relative() {
         const platform = process.platform
         const arch = process.arch
+        const arm = arch.includes('arm')
         if (platform === 'win32') {
             if (arch === 'ia32') return "node_modules/ffmpeg-helper/win-ia32.exe"
             if (arch === 'x64') return "node_modules/ffmpeg-helper/win-x64.exe"
         }
         if (platform === 'linux') {
-            if (arch === 'x64') return "node_modules/ffmpeg-helper/linux-x64"
-            if (arch === 'arm') return "node_modules/ffmpeg-helper/linux-arm64"
+            return arm
+                ? "node_modules/ffmpeg-helper/linux-arm64"
+                : "node_modules/ffmpeg-helper/linux-x64"
         }
         if (platform === 'darwin') {
-            if (arch === 'x64') return "node_modules/ffmpeg-helper/ffmpeg-darwin-x64.app/Contents/MacOS/ffmpeg-darwin-x64"
-            if (arch === 'arm64') return "node_modules/ffmpeg-helper/ffmpeg-darwin-arm64.app/Contents/MacOS/ffmpeg-darwin-arm64"
+            return arm
+                ? "node_modules/ffmpeg-helper/ffmpeg-darwin-arm64.app/Contents/MacOS/ffmpeg-darwin-arm64"
+                : "node_modules/ffmpeg-helper/ffmpeg-darwin-x64.app/Contents/MacOS/ffmpeg-darwin-x64"
         }
-        return "not_found"
+        return "unsupported platform/architecture"
     }
 }
 
