@@ -30,19 +30,13 @@ jobs:
           git fetch origin artifacts:artifacts
           git checkout artifacts -- artifacts
 
-      - name: Package
-        run: |
-          npm pack
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v2
+      - uses: actions/setup-node@v4
         with:
-          name: package
-          path: "*.tgz"
+          registry-url: 'https://registry.npmjs.org'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "Checking if non-prerelease version"
           if [[ $(node -p "require('./package.json').version") == *-* ]]; then
@@ -50,7 +44,7 @@ jobs:
             echo "npm publish --tag alpha"
           else
             echo "Publishing Latest"
-            npm publish --tag latest
+            npm publish --access=public --tag latest
           fi
 
       # - name: Deploy example page
