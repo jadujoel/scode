@@ -21,7 +21,7 @@ jobs:
 
       - name: VERSION
         run: |
-          node -p "require('./package.json').version"
+          echo $(node -p "require('./package.json').version")
 
       - name: Fetch artifacts branch
         run: |
