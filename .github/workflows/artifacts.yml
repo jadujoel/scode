@@ -8,8 +8,8 @@ on:
     # only run if there are changes in the source code
     # or if this file is changed
     paths:
-      - "src/**"
-      - ".github/workflows/artifacts.yml"
+      - 'src/**'
+      - '.github/workflows/artifacts.yml'
 jobs:
   ubuntu_x86:
     runs-on: ubuntu-latest
@@ -42,33 +42,29 @@ jobs:
         with:
           path: artifacts/
 
-      - name: Push artifacts
+      - name: Upload artifacts
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add artifacts
-          git commit -m "action: add artifacts"
-          git push origin HEAD:artifacts --follow-tags
+          git status
 
-  release:
-    needs: [push_artifacts]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v2
-        with:
-          path: artifacts/
-
-      - name: Echo contents of the directory
-        run: |
           echo "Root:"
           ls -l
           echo "Artifacts:"
           ls -l artifacts
           echo "Src:"
           ls -l src
+
+          CHANGES=$(git diff --name-only)
+          if [ -n "$CHANGES" ]; then
+            echo "Changes detected"
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add artifacts
+            git commit -m "action: add artifacts"
+            git push origin HEAD:artifacts --follow-tags
+          else
+            echo "No changes detected"
+            exit 0
+          fi
+
+          git status
+
