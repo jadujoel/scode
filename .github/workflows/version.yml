@@ -32,12 +32,16 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           echo "Current version: $(node -p "require('./package.json').version")"
+          VERSION="${{ github.event.inputs.type }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="alpha"
+          fi
           if [ "${{ github.event.inputs.type }}" = "alpha" ]; then
-            echo "Pre-release: ${{ github.event.inputs.type }}-alpha"
-            npm version prerelease --preid=alpha --tag=alpha
+            echo "Pre-release: $VERSION"
+            npm version prerelease --preid=alpha
           else
-            echo "Stable release: ${{ github.event.inputs.type }}"
-            npm version ${{ github.event.inputs.type }}
+            echo "Stable release: $VERSION"
+            npm version $VERSION
           fi
           echo "Updated version to $(node -p "require('./package.json').version")"
           git push --follow-tags
