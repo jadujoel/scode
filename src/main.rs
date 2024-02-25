@@ -14,7 +14,7 @@ use std::{
     hash::{Hash, Hasher},
     io,
     path::Path,
-    process::{exit, Command},
+    process::Command,
     sync::{Arc, Mutex},
     time::Instant,
 };
@@ -283,9 +283,7 @@ fn create_items(config: &Config) -> io::Result<Vec<Item>> {
             }
             let ffmpeg = config.ffmpeg.clone().unwrap_or("ffmpeg".to_string());
             reencode_source_files(&fixable, &ffmpeg)?;
-            info!(
-                "Some files had be reencoded, rerunning the program to recheck the source files"
-            );
+            info!("Some files had be reencoded, rerunning the program to recheck the source files");
             return create_items(config);
         }
 
@@ -476,13 +474,6 @@ fn reencode_source_files(files: &[String], ffmpeg: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn print_langs(sound_info: &[info::Item]) {
-    let mut langs: Vec<String> = sound_info.iter().map(|info| info.lang.clone()).collect();
-    langs.sort();
-    langs.dedup();
-    debug!("Languages: {langs:?}");
-}
-
 fn encode_items(config: Config, items: &[Item]) -> io::Result<()> {
     let items_to_encode: Vec<&info::Item> = time!("Encode: Check need", {
         items
@@ -567,22 +558,8 @@ fn encode_one_item(ffmpeg: &str, info: &info::Item, include_mp4: bool) -> io::Re
     .to_string_lossy()
     .to_string();
 
-    let format_file = |file: &str| {
-        format!("\"{file}\"")
-    };
-
-    // let infile = format_file(&infile);
-
     let out_path = Path::new(&info.output_path);
-
-    // if let Some(out_dir) = out_path.parent() {
-    //     if !out_dir.exists() {
-    //         // create the output directory if it doesn't exist
-    //         fs::create_dir_all(out_dir)?;
-    //     }
-    // }
     let outfile = out_path.to_string_lossy().to_string();
-    // let outfile = format_file(&outfile);
 
     debug!("Encoding {infile}");
     debug!("Encoding {outfile}");
@@ -621,18 +598,12 @@ fn encode_one_item(ffmpeg: &str, info: &info::Item, include_mp4: bool) -> io::Re
         command
     };
 
-    let opus_output_result = command
-        .arg("-c:a")
-        .arg("libopus")
-        .arg(&outfile)
-        .output();
+    let opus_output_result = command.arg("-c:a").arg("libopus").arg(&outfile).output();
 
     if let Err(e) = opus_output_result {
         return Err(io::Error::new(
             io::ErrorKind::Other,
-            format!(
-                "ffmpeg execution failed when encoding webm file {outfile} with error {e}",
-            ),
+            format!("ffmpeg execution failed when encoding webm file {outfile} with error {e}",),
         ));
     }
 
@@ -679,19 +650,3 @@ fn encode_one_item(ffmpeg: &str, info: &info::Item, include_mp4: bool) -> io::Re
     }
     Ok(())
 }
-
-// fn load_cache(skip: bool) -> info::Map {
-//     if skip {
-//         debug!("Skipping cache.");
-//         info::Map::new()
-//     } else {
-//         let cache = info::Map::from_cache_bin();
-//         if let Ok(cache) = cache {
-//             debug!("Loaded {} cached items", cache.value.len());
-//             cache
-//         } else {
-//             debug!("Failed to load cache, creating new cache");
-//             info::Map::new()
-//         }
-//     }
-// }
