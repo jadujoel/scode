@@ -40,6 +40,17 @@ jobs:
         with:
           path: artifacts/
 
+      - name: Check if any change in the binaries
+        run: |
+          git diff --quiet || echo "Changes detected"
+          CHANGES=$(git diff --name-only)
+          if [ -n "$CHANGES" ]; then
+            echo "Changes detected"
+          else
+            echo "No changes detected"
+            exit 0
+          fi
+
       - name: Commit and push the artifacts
         run: |
           git config user.name github-actions
