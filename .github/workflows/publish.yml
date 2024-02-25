@@ -1,0 +1,27 @@
+name: publish
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - artifacts
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@v2
+      #   with:
+      #     node-version: '20'
+
+      - name: Pull the artifacts
+        run: |
+          git fetch origin artifacts
+          git pull origin artifacts
+          git status
+          ls -l
+          ls -l artifacts
