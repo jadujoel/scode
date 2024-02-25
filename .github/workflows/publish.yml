@@ -45,12 +45,12 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "Checking if non-prerelease version"
-          if [[ $(node -p "require('./package.json').version") != *-* ]]; then
+          if [[ $(node -p "require('./package.json').version") == *-* ]]; then
+            echo "Publishing Alpha"
+            echo "npm publish --tag alpha"
+          else
             echo "Publishing Latest"
             echo "npm publish --tag latest"
-          else
-            echo "Publishing Next"
-            echo "npm publish --tag next"
           fi
 
       # - name: Deploy example page
