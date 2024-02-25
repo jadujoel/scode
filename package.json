@@ -6,8 +6,8 @@
   "bin": "index.mjs",
   "scripts": {
     "start": "node index.mjs",
-    "build": "echo build"
-
+    "build": "echo build",
+    "postinstall": "bash scripts/postinstall.bash"
   },
   "keywords": [],
   "author": "joel.lof@icloud.com",

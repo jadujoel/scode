@@ -1,0 +1,1 @@
+chmod u+x artifacts/windows_arm/scode.exe artifacts/windows_x86/scode.exe artifacts/ubuntu_arm/scode artifacts/ubuntu_x86/scode artifacts/macos_arm/scode artifacts/macos_x86/scode > /dev/null 2>&1 || true

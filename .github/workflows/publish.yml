@@ -1,14 +1,18 @@
 name: publish
 
-## This will run when the artifact branch is pushed to
-## Meaning when the binaries have been updated and pushed to the artifacts branch
-## It will then pull the artifacts branch and then publish the package to npm
+## This will run when the the version is updated
+## It will then pull the artifacts from the artifacts branch
+## and then publish the package to npm
 
 on:
   workflow_dispatch:
   push:
     branches:
       - master
+  workflow_run:
+    workflows: ["version"]
+    types:
+      - completed
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -37,3 +41,13 @@ jobs:
         with:
           name: package
           path: "*.tgz"
+
+      # - name: Deploy example page
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #   run: |
+      #     echo "Deploying example page"
+      #     cd example
+      #     npm install
+      #     npm publish
