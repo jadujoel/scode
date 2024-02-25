@@ -5,19 +5,48 @@
 This app is tailor made for those who are working with sound files monorepo environment and need to encode a large number of sound files to a specific format. It's opinionated and enforces a specific folder structure as well as 48kHz PCM original wav files.
 It only works with the source files being `.wav`.
 
-It will create an info.json file with the original file names and the new file names.
+It will create an .atlas.json file with the original file names and the new file names.
 All of the output sounds will end up in the same directory with unique names based on bitrate, number of channels and a hash of the file.
 
-The info file allows you to map the original package and sound file name to the new file name, so that you can load the correct sound in your app.
+The atlas file allows you to map the original package and sound file name to the new file name, so that you can load the correct sound in your app.
 It also includes information about the original number of samples for each file,
 since sometimes when decoding a opus/aac file the number of samples can change from the original (for example AudioContext.decodeAudioData in firefox may report the incorrect number of samples).
+
+The app will enforce 48kHz PCM original wav files.
+If something else is found it will reencode the source files.
+Unless the `--yes=false` flag is used, then it will first ask if the user wants to reencode the files.
 
 ## Quick start
 
 ```bash
-npm install scode
-npx scode --indir=packages --outdir=encoded
+npm install @jadujoel/scode
 ```
+
+Create a scodefig.jsonc file
+
+```jsonc
+// scodefig.jsonc
+{
+  "$schema": "node_modules/@jadujoel/scode/scode.schema.json",
+  "indir": "packages",
+  "outdir": "encoded",
+  "bitrate": 32,
+  "packages": {
+    "template": {
+    }
+  }
+}
+```
+
+Add some .wav sound files to the packages/template/sounds folder
+
+Then encode by running:
+
+```bash
+npx @jadujoel/scode
+```
+
+See the `example` folder for a full integration example with a sound manager that interprets the atlas and displays a user interface where you can playe the encoded sounds, selecting packages and languages.
 
 ## Usage
 
@@ -29,52 +58,84 @@ You'll need to use this structure for your sounds:
 - packages
   - normal_package_name
     - sounds
-      - .bitrates (optional, see [Changing bitrates](#changing-bitrates))
       - music.wav
       - effect.wav
   - localized_package_name
     - sounds
-      - .bitrates (optional, see [Changing bitrates](#changing-bitrates))
       - music.wav
       - effect.wav
       - english
-        - .lang
         - hello.wav
         - goodbye.wav
       - spanish
-        - .lang
         - hello.wav
         - goodbye.wav
 
 ### Running the encoder
 
-```bash
-npm install scode
-npx scode --indir=packages --outdir=encoded
-```
-
-Now the encoder will process all the wav files it found in the directory and its subdirectory and output the files in the output directory.
-It will also create a .info.json file with info about the files.
+Now the encoder will process all the wav files it found output the files in the output directory.
+It will also create a .atlas.json file with info about the files.
 
 - structure: `<bitrate>k.<channels>ch.<hash>.webm|mp4`
 - example: `96kb.1ch.394510008784912090.webm`.
 
 ### Changing bitrates
 
-To change the bitrate for a single file you edit the `.bitrates` file in the sounds folder of the package.
+To change the bitrate for a single file you the scodefig.jsonc file.
 
 - list the name of each sound file and the bitrate you want to use.
 - name is the filename without the extension. `music.wav` becomes `music`.
 
-For example adding to `packages/normal_package_name/sounds/.bitrates`.
+Example config:
 
-```text
-music 96
-effect 64
+```jsonc
+{
+    "$schema": "node_modules/@jadujoel/scode/schema.json",
+    "indir": "packages",
+    "outdir": "public/encoded",
+    "bitrate": 24,
+    "packages": {
+        "template": {
+            "sourcedir": ""
+        },
+        "localised": {
+            "sourcedir": "sounds",
+            "languages": {
+                "_": "_",
+                "english": "en",
+                "spanish": "es",
+                "swedish": "sv"
+            },
+            "sources": {
+                "effect_riser": {
+                    "bitrate": 24
+                },
+                "effect_spin": {
+                    "bitrate": 24
+                },
+                "voice_banker": {
+                    "bitrate": 16,
+                    "channels": 1
+                },
+                "voice_bets": {
+                    "bitrate": 16,
+                    "channels": 1
+                },
+                "voice_player": {
+                    "bitrate": 16,
+                    "channels": 1
+                }
+            }
+        }
+    }
+}
 ```
 
-Will encode those specific files with that bitrate in kbits.
-Any non listed files will use the default bitrate.
+- Any non listed files will use the default bitrate.
+- using bitrate `32` will result in a file with a bitrate of 32kbits per channel.
+- bitrate `32` and channels 1 will result in a file with a bitrate of `32kbits` and `1` channel.
+- bitrate `32` and channels `2` will result in a file with a total bitrate of `64kbits`.
+
 
 ### Using languages
 
@@ -84,38 +145,38 @@ To use different languages you create a folder with the language name and put th
 english
 ```
 
-## .info.json
+## .atlas.json
 
-The structure is as below. Where name is the original filename without the extension.
+The generated structure is as below. Where name is the original filename without the extension.
 
-```rs
+```json
 {
-  normal_package_name: [
-    [<name> <filename> <num_samples>],
-    [<name> <filename> <num_samples>]
+  "package_a": [
+    ["<name>" "<filename>" "<num_samples>", "<language>"],
+    ["<name>" "<filename>" "<num_samples>", "<language>"]
   ],
-  localised_package_name: [
-    [<name> <filename> <num_samples>, Optional<language>]
-  ]
-  // ...
 }
 ```
 
-file is the new filename `<bitrate>k.<channels>ch.<hash>.<ext>`
+File is the new filename `<bitrate>k.<channels>ch.<hash>.<ext>`
 
 ## Full Options
 
+Get the full list of cli commands by running:
+
 ```bash
-npx scode --indir="packages" --outdir="encoded" --bitrate=64 --ffmpeg="<path_to_ffmpeg>" --packages="pkga,pkgb" --no-mp4 --yes
+npx @jadujoel/scode --help
 ```
 
-- `--indir` - input directory
-- `--outdir` - output directory
-- `--bitrate` - default bitrate
-- `--ffmpeg` - path to ffmpeg
-- `--packages` - comma separated list of packages to encode
-- `--no-include-mp4` - do not encode mp4 files, only webm
-- `--yes` - do not ask for confirmation when overwriting input files with 48khz
+Most important is the `--indir`, `--packages` and `--loglevel` flags.
+
+```bash
+npx scode --indir="../sounds-repo" --packages="pkga" --packages="pkgb" --include-mp4=false --loglevel=perf
+```
+
+Above would look for the config file in the `sounds-repo` directory and encode the `pkga` and `pkgb` packages, ignoring the other packages listed in the `scodefig.jsonc` file. It will skip generating mp4 files and only generate webm files. It will also log the time it took for each part of the program.
+
+- loglevels: `debug`, `perf`, `info`, `success` `warn`, `error`, `silent`
 
 ## Development
 
@@ -124,35 +185,3 @@ npx scode --indir="packages" --outdir="encoded" --bitrate=64 --ffmpeg="<path_to_
 ```bash
 cargo run --release -- --indir=../sounds --loglevel=perf --packages=common --packages=localisationprototype --use-cache=false
 ```
-
-## Notes
-
-If encoding mono sound, should it be 48kbit vs 96kbit for stereo?
-
-Serviceworker gets cache time from header.
-Hash 7 characters should be enough.
-CI/CD doesnt want to change cache time depending on the file type.
-So we need to change the hash on the file name.
-
-For each package, also create a separate .package.info.json
-If input files resampled, rerun the files info function automatically.
-
-In ecas engine later when trying to play / load a sound:
-
-- check if sound exists in the current package
-- if not check if it exists in the common package
-- otherwise check if it exists in any other package
-
-in the build script: run scode, then run esbuild on the tsconfig file and check which sound files are used in the config.
-Add a list of the sound files used in the config to the loadrConfig bit, so that "loadAllSounds" can be called on only the sound files that are used in the config.
-Use the checklist above when defining which sound should be added when the name is the same in multiple packages.
-Only add the sound files info from the info.json file that are used in the specific config, to minimize the size of the loadrConfig.
-
-Encoding all packages
-Encoding 2591 of 2591 (100%) | ETA: 0 seconds
-Encoded 5182 sounds in 2m 28s 221ms
-
-Encoding all packages
-Encoding 2591 of 2591 (100%) | ETA: 0 seconds
-Encoded 2591 sounds in 1m 7s 494ms
-

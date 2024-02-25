@@ -1,5 +1,5 @@
 {
-    "$schema": "node_modules/scode/schema.json",
+    "$schema": "node_modules/@jadujoel/scode/schema.json",
     "indir": "packages",
     "outdir": "public/encoded",
     "bitrate": 24,
