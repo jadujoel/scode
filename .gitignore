@@ -1,3 +1,7 @@
+# Ignore everything
 *
+
+# But not these files
 !.gitignore
-!/artifacts/
+!artifacts/
+!artifacts/**/*
