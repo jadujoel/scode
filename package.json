@@ -1,6 +1,6 @@
 {
   "name": "scode",
-  "version": "1.0.8-alpha.12",
+  "version": "1.1.0",
   "description": "encode sound files",
   "main": "lib.mjs",
   "bin": "index.mjs",
