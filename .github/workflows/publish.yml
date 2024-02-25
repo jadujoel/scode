@@ -24,8 +24,7 @@ jobs:
 
       - name: Pull the artifacts
         run: |
-          git fetch origin artifacts
-          git pull origin artifacts
+          git checkout origin/artifacts -- artifacts
           git status
           ls -l
           ls -l artifacts
