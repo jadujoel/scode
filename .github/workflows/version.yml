@@ -6,7 +6,7 @@ on:
       - master
   workflow_dispatch:
     inputs:
-      version:
+      version_type:
         type: choice
         description: 'Version to update package.json to'
         required: true
@@ -27,7 +27,7 @@ on:
           - 'latest'
           - 'next'
 jobs:
-  build:
+  bump_version:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,11 +43,11 @@ jobs:
           git config user.email github-actions@github.com
           echo "Current version: $(node -p "require('./package.json').version")"
           if [ -z "${{ github.event.inputs.preid }}" ]; then
-            echo "Stable release: ${{ github.event.inputs.version }}"
-            npm version ${{ github.event.inputs.version }}
+            echo "Stable release: ${{ github.event.inputs.version_type }}"
+            npm version ${{ github.event.inputs.version_type }}
           else
-            echo "Pre-release: ${{ github.event.inputs.version }}-${{ github.event.inputs.preid }}"
-            npm version ${{ github.event.inputs.version }} --preid=${{ github.event.inputs.preid }}
+            echo "Pre-release: ${{ github.event.inputs.version_type }}-${{ github.event.inputs.preid }}"
+            npm version ${{ github.event.inputs.version_type }} --preid=${{ github.event.inputs.preid }}
           fi
           echo "Updated version to $(node -p "require('./package.json').version")"
           git push --follow-tags
