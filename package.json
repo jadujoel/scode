@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node index.mjs",
     "build": "echo build",
-    "postinstall": "bash scripts/postinstall.bash"
+    "postinstall": "bash postinstall.bash"
   },
   "keywords": [],
   "author": "joel.lof@icloud.com",
