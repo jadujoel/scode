@@ -50,7 +50,7 @@ jobs:
             echo "npm publish --tag alpha"
           else
             echo "Publishing Latest"
-            echo "npm publish --tag latest"
+            npm publish --tag latest
           fi
 
       # - name: Deploy example page
