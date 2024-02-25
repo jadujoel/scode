@@ -6,6 +6,9 @@ name: publish
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - master
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,7 +23,17 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git fetch origin artifacts:artifacts
-          git checkout origin/artifacts -- artifacts
+          git checkout artifacts -- artifacts
           git status
           ls -l
           ls -l artifacts
+
+      - name: Package
+        run: |
+          npm pack
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: package
+          path: "*.tgz"

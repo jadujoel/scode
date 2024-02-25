@@ -5,7 +5,9 @@
   "main": "lib.mjs",
   "bin": "index.mjs",
   "scripts": {
-    "start": "node index.mjs"
+    "start": "node index.mjs",
+    "build": "echo build"
+
   },
   "keywords": [],
   "author": "joel.lof@icloud.com",
