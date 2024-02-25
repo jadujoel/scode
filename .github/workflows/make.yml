@@ -2,6 +2,9 @@ name: Make
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - actions
 
 jobs:
 #   macos_arm:
