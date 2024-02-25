@@ -163,14 +163,12 @@ Example config:
 - bitrate `32` and channels 1 will result in a file with a bitrate of `32kbits` and `1` channel.
 - bitrate `32` and channels `2` will result in a file with a total bitrate of `64kbits`.
 
-
 ### Using languages
 
-To use different languages you create a folder with the language name and put the files in there. Then you add a `.language` file. See [file structure](#folder-structure) above. This will add an extra field to into the `.info.json` file that the ingesting audio library can use to select the correct file for the user.
-
-```text
-english
-```
+To use different languages you update the scodefig.jsonc file.
+To use different languages you need to add a `languages` object to the package.
+The `_` represents `no language`.
+Otherwise you mapp tha language name to the folder to look for the files in.
 
 ## .atlas.json
 
