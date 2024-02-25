@@ -45,14 +45,8 @@ jobs:
       - name: Upload artifacts
         run: |
           git status
-
-          echo "Root:"
           ls -l
-          echo "Artifacts:"
-          ls -l artifacts
-          echo "Src:"
-          ls -l src
-
+          ls -l artifacts || true
           CHANGES=$(git diff --name-only)
           if [ -n "$CHANGES" ]; then
             echo "Changes detected"
@@ -65,6 +59,4 @@ jobs:
             echo "No changes detected"
             exit 0
           fi
-
           git status
-
