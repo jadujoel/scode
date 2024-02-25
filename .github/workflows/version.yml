@@ -1,9 +1,6 @@
 name: version
 
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
     inputs:
       version_type:
@@ -47,7 +44,7 @@ jobs:
             npm version ${{ github.event.inputs.version_type }}
           else
             echo "Pre-release: ${{ github.event.inputs.version_type }}-${{ github.event.inputs.preid }}"
-            npm version ${{ github.event.inputs.version_type }} --preid=${{ github.event.inputs.preid }}
+            npm version ${{ github.event.inputs.version_type }} --preid=${{ github.event.inputs.preid }} --tag=${{ github.event.inputs.preid }}
           fi
           echo "Updated version to $(node -p "require('./package.json').version")"
           git push --follow-tags
