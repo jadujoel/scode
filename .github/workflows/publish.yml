@@ -6,9 +6,6 @@ name: publish
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - artifacts
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,9 +15,11 @@ jobs:
           token: ${{ secrets.PAT_TOKEN }}
           fetch-depth: 0
 
-      - name: Pull the artifacts
+      - name: Fetch artifacts branch
         run: |
-          git fetch --all
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git fetch origin artifacts:artifacts
           git checkout origin/artifacts -- artifacts
           git status
           ls -l
