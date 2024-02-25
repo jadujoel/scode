@@ -10,7 +10,7 @@ on:
         type: choice
         description: 'Version to update package.json to'
         required: true
-        default: 'patch'
+        default: 'prepatch'
         options:
           - 'prepatch'
           - 'patch'
