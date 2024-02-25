@@ -1,0 +1,40 @@
+{
+    "$schema": "node_modules/scode/schema.json",
+    "indir": "packages",
+    "outdir": "public/encoded",
+    "bitrate": 24,
+    "packages": {
+        "template": {
+            "sourcedir": ""
+        },
+        "localised": {
+            "sourcedir": "sounds",
+            "languages": {
+                "_": "_",
+                "english": "en",
+                "spanish": "es",
+                "swedish": "sv"
+            },
+            "sources": {
+                "effect_riser": {
+                    "bitrate": 24
+                },
+                "effect_spin": {
+                    "bitrate": 24
+                },
+                "voice_banker": {
+                    "bitrate": 16,
+                    "channels": 1
+                },
+                "voice_bets": {
+                    "bitrate": 16,
+                    "channels": 1
+                },
+                "voice_player": {
+                    "bitrate": 16,
+                    "channels": 1
+                }
+            }
+        }
+    }
+}

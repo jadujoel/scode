@@ -1,0 +1,16 @@
+{
+  "name": "scode-example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "npx scode",
+    "serve": "node serve.mjs"
+  },
+  "keywords": [],
+  "author": "joel.lof@icloud.com",
+  "license": "MIT",
+  "dependencies": {
+    "scode": "file:../"
+  }
+}
