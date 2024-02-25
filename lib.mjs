@@ -1,5 +1,6 @@
 import { spawn } from 'child_process'
 import { resolve } from 'path';
+import { path as ffmpeg } from 'ffmpeg-helper'
 
 export function scode() {
     return resolve_this_dir(relative())
@@ -28,7 +29,7 @@ export function scode() {
     }
 }
 
-export function ffmpeg() {
+export function ffmpega() {
     return resolve_this_dir(relative())
     function relative() {
         const platform = process.platform
@@ -62,7 +63,7 @@ function resolve_this_dir(file = '') {
 export function encode(args) {
     // remove --dev so scode doesnt throw
     let nargs = [...args].filter(v => v !== "--dev")
-    const child = spawn(scode(), [...nargs, `--ffmpeg=${ffmpeg()}`, '--yes=true'])
+    const child = spawn(scode(), [...nargs, `--ffmpeg=${ffmpeg}`, '--yes=true'])
     child.stdout.on('data', (data) => {
         process.stdout.write(data.toString());
     })
