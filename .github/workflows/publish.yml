@@ -1,5 +1,9 @@
 name: publish
 
+## This will run when the artifact branch is pushed to
+## Meaning when the binaries have been updated and pushed to the artifacts branch
+## It will then pull the artifacts branch and then publish the package to npm
+
 on:
   workflow_dispatch:
   push:

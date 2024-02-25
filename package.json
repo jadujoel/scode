@@ -12,5 +12,11 @@
   "license": "MIT",
   "dependencies": {
     "ffmpeg-helper": "0.1.2"
-  }
+  },
+  "files": [
+    "artifacts",
+    "index.mjs",
+    "lib.mjs",
+    "schema.json"
+  ]
 }
