@@ -5,8 +5,7 @@ on:
   push:
     branches:
       - actions
-    # only run if there are changes in the source code
-    # or if this file is changed
+    # only run if there are changes in the source code or if this file is changed
     paths:
       - 'src/**'
       - '.github/workflows/artifacts.yml'
