@@ -46,13 +46,3 @@ jobs:
             echo "Publishing Latest"
             npm publish --access=public --tag latest
           fi
-
-      # - name: Deploy example page
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      #   run: |
-      #     echo "Deploying example page"
-      #     cd example
-      #     npm install
-      #     npm publish
