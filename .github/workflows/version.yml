@@ -16,11 +16,14 @@ on:
           - 'premajor'
           - 'major'
       preid:
-        type: string
+        type: choice
         description: 'Pre-release identifier (e.g., alpha, beta). Leave empty for stable releases.'
         required: false
-        default: ''
-
+        default: 'alpha'
+        options:
+          - 'alpha'
+          - 'beta'
+          - 'rc'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -42,5 +45,6 @@ jobs:
             npm version ${{ github.event.inputs.version }} --preid=${{ github.event.inputs.preid }}
           fi
           echo "Updated version to $(node -p "require('./package.json').version")"
+          git push --follow-tags
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
