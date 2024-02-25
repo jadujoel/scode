@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import { path as ffmpeg } from 'ffmpeg-helper'
 
 export function scode() {
-    return resolve_this_dir(relative())
+    return find(relative())
     function relative() {
         if (process.argv.includes("--dev")) {
             return "target/release/scode"
@@ -30,7 +30,7 @@ export function scode() {
 }
 
 export function ffmpega() {
-    return resolve_this_dir(relative())
+    return find(relative())
     function relative() {
         const platform = process.platform
         const arch = process.arch
@@ -53,8 +53,8 @@ export function ffmpega() {
     }
 }
 
-function resolve_this_dir(file = '') {
-    return resolve(import.meta.url.replace('file://', '').replace('lib.mjs', ''), file)
+function find(file = '') {
+    return resolve(resolve(), 'node_modules', '@jadujoel', 'scode', file)
 }
 
 /**
