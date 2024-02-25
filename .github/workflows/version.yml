@@ -10,7 +10,7 @@ on:
         type: choice
         description: 'Version to update package.json to'
         required: true
-        default: 'prepatch'
+        default: 'patch'
         options:
           - 'prepatch'
           - 'patch'
@@ -20,13 +20,12 @@ on:
           - 'major'
       preid:
         type: choice
-        description: 'Pre-release identifier (e.g., alpha, beta). Leave empty for stable releases.'
+        description: 'Pre-release identifier (e.g., next, latest). Leave empty for stable releases.'
         required: false
-        default: 'alpha'
+        default: 'next'
         options:
-          - 'alpha'
-          - 'beta'
-          - 'rc'
+          - 'latest'
+          - 'next'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -44,8 +43,10 @@ jobs:
           git config user.email github-actions@github.com
           echo "Current version: $(node -p "require('./package.json').version")"
           if [ -z "${{ github.event.inputs.preid }}" ]; then
+            echo "Stable release: ${{ github.event.inputs.version }}"
             npm version ${{ github.event.inputs.version }}
           else
+            echo "Pre-release: ${{ github.event.inputs.version }}-${{ github.event.inputs.preid }}"
             npm version ${{ github.event.inputs.version }} --preid=${{ github.event.inputs.preid }}
           fi
           echo "Updated version to $(node -p "require('./package.json').version")"
