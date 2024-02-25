@@ -12,26 +12,21 @@
             "languages": {
                 "_": "_",
                 "english": "en",
-                "spanish": "es",
                 "swedish": "sv"
             },
             "sources": {
                 "effect_riser": {
-                    "bitrate": 24
+                    "bitrate": 48
                 },
                 "effect_spin": {
-                    "bitrate": 24
+                    "bitrate": 48
                 },
                 "voice_banker": {
-                    "bitrate": 16,
-                    "channels": 1
-                },
-                "voice_bets": {
-                    "bitrate": 16,
+                    "bitrate": 24,
                     "channels": 1
                 },
                 "voice_player": {
-                    "bitrate": 16,
+                    "bitrate": 24,
                     "channels": 1
                 }
             }

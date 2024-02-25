@@ -18,9 +18,15 @@ Unless the `--yes=false` flag is used, then it will first ask if the user wants 
 
 ## Quick start
 
+Run:
+
 ```bash
-npm install @jadujoel/scode
+npm run example
 ```
+
+And open localhost:3000 in your browser.
+
+## Quick Setup of your own project
 
 Create a scodefig.jsonc file
 

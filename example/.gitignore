@@ -2,4 +2,3 @@
 node_modules
 encoded
 package-lock.json
-*.wav
