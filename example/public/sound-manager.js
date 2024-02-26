@@ -22,7 +22,7 @@ export class SoundManager extends EventTarget {
     atlas = [],
     context = new AudioContext({ sampleRate: 48000 }),
     name = NO_LANG,
-    path = "/encoded/",
+    path = "./encoded/",
     language = NO_LANG,
     extension = ".webm",
   ) {
