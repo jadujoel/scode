@@ -68,6 +68,21 @@
             "$ref": "#/definitions/source"
           },
           "description": "Optional. Specific source files with overridden bitrate or channels."
+        },
+        "author": {
+          "type": "string",
+          "description": "Optional. Author of the package."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional. Description of the package."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional. Tags for the package."
         }
       },
       "additionalProperties": false

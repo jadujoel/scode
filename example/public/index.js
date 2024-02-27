@@ -1,125 +1,137 @@
-import { NO_LANG, SoundManager } from './sound-manager.js';
+import { SoundManager } from './sound-manager.js'
 
 function main() {
-  const manager = new SoundManager();
+  const manager = new SoundManager()
   manager.addEventListener("soundloaded", ev => {
-    const file = ev.detail.file;
-    // do something with the file
+    // const file = ev.detail.file
   })
   manager.addEventListener("atlasloaded", () => {
-    updatePackageButtons(manager);
+    manager.loadEverything()
+    updatePackageButtons(manager)
+    manager.setPackageByName('localised')
+    manager.setLanguage('english')
   })
   manager.addEventListener("packagechanged", () => {
-    // preload the non-localized sounds
-    manager.loadLanguage(NO_LANG);
-    updatePackageButtons(manager);
-    updateLanguageButtons(manager);
-    updatePlayButtons(manager);
+    updatePackageButtons(manager)
+    updateLanguageButtons(manager)
+    updatePlayButtons(manager)
   })
   manager.addEventListener("languagechanged", () => {
-    manager.loadLanguage();
-    updateLanguageButtons(manager);
-    updatePlayButtons(manager);
+    updateLanguageButtons(manager)
+    updatePlayButtons(manager)
   })
-  manager.loadAtlas()
+  manager.loadAtlas('./encoded/.atlas.json')
+  window.manager = manager
 }
 
 // ----------------- UI ----------------- //
 
 /** @type {HTMLButtonElement[]} */
-let playButtons = []
-let playButtonContainer = document.getElementById('play-buttons');
+const playButtons = []
+const playButtonContainer = document.getElementById('play-buttons')
 
 /** @type {HTMLButtonElement[]} */
-let languageButtons = [];
-let languageButtonContainer = document.getElementById('language-buttons');
+const languageButtons = []
+const languageButtonContainer = document.getElementById('language-buttons')
 
 /** @type {HTMLButtonElement[]} */
-let packageButtons = [];
-let packageButtonContainer = document.getElementById('package-buttons');
+const packageButtons = []
+const packageButtonContainer = document.getElementById('package-buttons')
 
-function clearPlayButtons() {
-  playButtons.forEach(button => {
-    button?.remove()
-  });
-  playButtons = [];
-}
-function clearLanguageButtons() {
-  languageButtons.forEach(button => {
-    button?.remove()
-  });
-  languageButtons = [];
-}
-
-function clearPackageButtons() {
-  packageButtons.forEach(button => {
-    button?.remove()
-  });
-  packageButtons = [];
+/**
+ * @param {HTMLButtonElement[]} buttons
+ * @returns {HTMLButtonElement[]}
+ * */
+function clearButtons(buttons) {
+  for (const button of buttons) {
+    button.remove()
+  }
+  buttons.length = 0
+  return buttons
 }
 
 /**
  * @param {SoundManager} manager
+ * @returns {HTMLButtonElement[]}
  */
 function updatePackageButtons(manager) {
-  clearPackageButtons();
-  packageButtons = manager.getPackages().sort().map(name => {
-    const button = createButton(packageButtonContainer, name, () => {
-      manager.setPackage(name);
-    })
-    if (name === manager.package) {
-      button.classList.add('selected');
-    }
-    return button
-  });
+  return clearButtons(packageButtons)
+    .push(...
+      manager.getPackageNames()
+      .sort()
+      .map(name => {
+        const button = createButton(
+          packageButtonContainer,
+          name, () => {
+            manager.setPackageByName(name)
+          }
+        )
+        if (name === manager.cpn) {
+          button.classList.add('selected')
+        }
+        return button
+      }
+    )
+  )
 }
 
 /**
  * @param {SoundManager} manager
+ * @returns {HTMLButtonElement[]}
  */
 function updateLanguageButtons(manager) {
-  clearLanguageButtons();
-  languageButtons = manager.languages().sort().map(language => {
-    const button = createButton(languageButtonContainer, language, () => {
-      manager.setLanguage(language);
-    })
-    if (language === manager.language) {
-      button.classList.add('selected');
-    }
-    return button
-  });
+  return clearButtons(languageButtons)
+    .push(...
+      manager.languages()
+        .sort()
+        .map(language => {
+          const button = createButton(
+            languageButtonContainer,
+            language, () => {
+              manager.setLanguage(language)
+            }
+          )
+          if (language === manager.language) {
+            button.classList.add('selected')
+          }
+          return button
+        })
+    )
 }
 
 /**
  * @param {SoundManager} manager
+ * @returns {HTMLButtonElement[]}
  */
 function updatePlayButtons(manager) {
-  clearPlayButtons();
-  playButtons = manager.names().sort().map(name => {
-    /** @type {AudioBufferSourceNode | undefined} */
-    let source;
-    const button = createButton(playButtonContainer, name, () => {
-      if (button.classList.contains('playing')) {
-        button.classList.remove('playing');
-        try {
-          source?.stop();
-        } catch {}
-        return;
-      }
-      source = manager.context.createBufferSource();
-      source.buffer = manager.requestBufferSync(name);
-      source.connect(manager.context.destination);
-
-      button.classList.add('playing');
-      button.style.setProperty('--animation-duration', `${source?.buffer?.duration}s`);
-      source.addEventListener('ended', () => {
-        button.classList.remove('playing');
+  return clearButtons(playButtons)
+    .push(
+      ...manager.sourceNames()
+        .sort()
+        .map(name => {
+          /** @type {AudioBufferSourceNode | undefined} */
+          let source
+          const button = createButton(playButtonContainer, name, () => {
+            if (button.classList.contains('playing')) {
+              button.classList.remove('playing')
+              try {
+                source?.stop()
+              } catch {}
+              return
+            }
+            source = manager.context.createBufferSource()
+            source.buffer = manager.requestBufferSync(name)
+            source.connect(manager.context.destination)
+            button.classList.add('playing')
+            button.style.setProperty('--animation-duration', `${source?.buffer?.duration}s`)
+            source.addEventListener('ended', () => {
+              button.classList.remove('playing')
+            })
+            source.start()
+          })
+          return button
       })
-
-      source.start();
-    })
-    return button
-  });
+    )
 }
 
 /**
@@ -129,11 +141,11 @@ function updatePlayButtons(manager) {
  * @returns {HTMLButtonElement}
  */
 function createButton(parent, name, onclick) {
-  const button = document.createElement('button');
-  button.textContent = name;
-  parent.appendChild(button);
-  button.addEventListener('click', onclick);
-  return button;
+  const button = document.createElement('button')
+  button.textContent = name
+  parent.appendChild(button)
+  button.addEventListener('click', onclick)
+  return button
 }
 
 main()
