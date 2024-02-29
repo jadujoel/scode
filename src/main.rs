@@ -629,7 +629,13 @@ fn encode_one_item(ffmpeg: &str, info: &info::Item, include_mp4: bool) -> io::Re
     debug!("Encoding {outfile}");
 
     // write the mp4 file
-    let mp4_output_result = command.arg("-c:a").arg("aac").arg(outfile.clone()).output();
+    let mp4_output_result = command
+        .arg("-c:a")
+        .arg("aac")
+        .arg("-movflags")
+        .arg("+faststart")
+        .arg(outfile.clone())
+        .output();
     if let Err(e) = mp4_output_result {
         return Err(io::Error::new(
             io::ErrorKind::Other,

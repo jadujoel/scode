@@ -89,8 +89,9 @@ You'll need to use this structure for your sounds:
       - effect.wav
   - localized_package_name
     - sounds
-      - music.wav
-      - effect.wav
+      - _
+        - music.wav
+        - effect.wav
       - english
         - hello.wav
         - goodbye.wav
