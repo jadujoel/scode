@@ -1,6 +1,6 @@
 {
   "name": "@jadujoel/scode",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "encode sound files",
   "main": "lib.mjs",
   "bin": "index.mjs",
