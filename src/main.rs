@@ -443,7 +443,7 @@ fn reencode_source_files(files: &[String], ffmpeg: &str) -> io::Result<()> {
                     .arg("48000")
                     .arg(&converted)
                     .arg("-acodec")
-                    .arg("pcm_s16le")
+                    .arg("pcm_s24le")
                     .arg("-y")
                     .output()?;
 
