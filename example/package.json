@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "npx scode && node build.mjs",
-    "start": "npx scode && node build.mjs && node serve.mjs",
+    "build": "npx scode",
+    "start": "npx scode && node serve.mjs",
     "serve": "node serve.mjs"
   },
   "keywords": [],
