@@ -50,10 +50,10 @@ h1::after, h2::after {
     position: absolute;
     left: -20%;
     right: 0;
-    bottom: -10px; /* Adjust the distance from the text */
-    height: 2px; /* Thickness of the underline */
-    background-color: #617583; /* Color of the underline */
-    width: 140%; /* You can adjust this to change how wide the underline is */
+    bottom: -10px;
+    height: 2px;
+    background-color: #617583;
+    width: 140%;
 }
 
 a {
@@ -65,13 +65,11 @@ a:hover {
 }
 
 hr {
-    border: none; /* Removes the default border */
-    border-top: 2px solid #393939; /* Sets the top border to a 2px solid line with a color of your choice */
+    border: none;
+    border-top: 2px solid #393939;
 }
 
 .playing {
-    /* Define a linear gradient that starts and ends with the same color,
-       but has a hard transition point that you can move to simulate filling. */
     background-image: linear-gradient(90deg, #2782e9 0%, #2782e9 50%, transparent 50%);
     animation-name: fillAnimation;
     animation-duration: var(--animation-duration);

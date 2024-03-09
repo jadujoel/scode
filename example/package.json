@@ -4,14 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "npx scode",
-    "start": "npx scode && node serve.mjs",
+    "build": "npx scode && node build.mjs",
+    "start": "npx scode && node build.mjs && node serve.mjs",
     "serve": "node serve.mjs"
   },
   "keywords": [],
   "author": "joel.lof@icloud.com",
   "license": "MIT",
-  "devDependencies": {
-    "@jadujoel/scode": "latest"
+  "dependencies": {
+    "@jadujoel/scode": "latest",
+    "smanager": "1.4.0"
   }
 }
