@@ -7,6 +7,9 @@ manager.addEventListener("atlasloaded", () => {
   manager.activePackageNames = manager.getPackageNames();
   manager.setPackageByName("localised");
   manager.setLanguage("english");
+  updatePackageButtons();
+  updateLanguageButtons();
+  updatePlayButtons();
 });
 manager.addEventListener("packagechanged", () => {
   updatePackageButtons();
