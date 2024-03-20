@@ -362,6 +362,8 @@ fn create_item_for_file(
                         let mut hasher = DefaultHasher::new();
                         buffer.hash(&mut hasher);
                         let hash = hasher.finish().to_string();
+                        // convert to be maximum15 characters
+                        let hash = &hash[..15];
                         let (target_bitrate, target_channels) =
                             package_sources.get(&name).map_or_else(
                                 || {
