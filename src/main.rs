@@ -178,7 +178,7 @@ fn create_items(config: &Config) -> io::Result<Vec<Item>> {
                             use_cache,
                             &cache,
                             &NO_LANG.to_string(),
-                            package_config.include_flac.unwrap_or(false)
+                            package_config.include_flac.unwrap_or(false),
                         )
                     })
                     .collect(); // Collect into Vec<Result<Item, io::Error>>
@@ -211,7 +211,7 @@ fn create_items(config: &Config) -> io::Result<Vec<Item>> {
                             use_cache,
                             &cache,
                             &lang,
-                            package_config.include_flac.unwrap_or(false)
+                            package_config.include_flac.unwrap_or(false),
                         )
                     })
                     .collect(); // Collect into Vec<Result<Item, io::Error>>
@@ -300,6 +300,7 @@ fn create_items(config: &Config) -> io::Result<Vec<Item>> {
     Ok(ok_values)
 }
 
+#[allow(clippy::fn_params_excessive_bools, clippy::too_many_arguments)]
 fn create_item_for_file(
     file: &DirEntry,
     package_sources: &HashMap<String, Source>,
@@ -309,7 +310,7 @@ fn create_item_for_file(
     use_cache: bool,
     cache: &info::Map,
     lang: &String,
-    include_flac: bool
+    include_flac: bool,
 ) -> Option<Result<Item, io::Error>> {
     let file_buf = file.path();
     if !file_buf.is_file() {
@@ -401,7 +402,7 @@ fn create_item_for_file(
                             modification_date,
                             bitrate: target_bitrate,
                             output_path: output_path.to_string_lossy().into_owned(),
-                            include_flac
+                            include_flac,
                         })
                     } else {
                         let message = format!(
@@ -483,7 +484,38 @@ fn encode_items(config: Config, items: &[Item]) -> io::Result<()> {
     let items_to_encode: Vec<&info::Item> = time!("Encode: Check need", {
         items
             .par_iter()
-            .filter(|info| !Path::new(&info.output_path).exists())
+            .filter(|info| {
+                let path = info.output_path.clone();
+
+                if config.include_webm.unwrap_or(false) && !Path::new(&path).exists() {
+                    return false;
+                }
+
+                if config.include_mp4.unwrap_or(false)
+                    && !Path::new(&path.replace("webm", "mp4")).exists()
+                {
+                    return false;
+                }
+
+                if config.include_opus.unwrap_or(false)
+                    && !Path::new(&path.replace("webm", "opus")).exists()
+                {
+                    return false;
+                }
+
+                if config.include_flac.unwrap_or(false)
+                    && !Path::new(&path.replace("webm", "flac")).exists()
+                {
+                    return false;
+                }
+
+                if info.include_flac && !Path::new(&path.replace("webm", "flac")).exists() {
+                    return false;
+                }
+
+                true
+            })
+            // update this to filter where all that is supposed to be encoded doesnt exist
             .collect()
     });
     time!("Encode: Check ffmpeg exists", {
@@ -528,6 +560,7 @@ fn encode_items(config: Config, items: &[Item]) -> io::Result<()> {
     Ok(())
 }
 
+#[allow(clippy::fn_params_excessive_bools)]
 fn encode_with_progress(
     sounds: &Vec<&info::Item>,
     ffmpeg: &str,
@@ -562,6 +595,7 @@ fn encode_with_progress(
     }
 }
 
+#[allow(clippy::too_many_lines, clippy::fn_params_excessive_bools)]
 fn encode_one_item(
     ffmpeg: &str,
     info: &info::Item,
