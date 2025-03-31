@@ -485,35 +485,35 @@ fn encode_items(config: Config, items: &[Item]) -> io::Result<()> {
         items
             .par_iter()
             .filter(|info| {
+                // return true to keep
                 let path = info.output_path.clone();
 
-                if config.include_webm.unwrap_or(false) && !Path::new(&path).exists() {
-                    return false;
+                if config.include_webm.unwrap_or(true) && !Path::new(&path).exists() {
+                    return true;
                 }
 
                 if config.include_mp4.unwrap_or(false)
                     && !Path::new(&path.replace("webm", "mp4")).exists()
                 {
-                    return false;
+                    return true;
                 }
 
                 if config.include_opus.unwrap_or(false)
                     && !Path::new(&path.replace("webm", "opus")).exists()
                 {
-                    return false;
+                    return true;
                 }
 
                 if config.include_flac.unwrap_or(false)
                     && !Path::new(&path.replace("webm", "flac")).exists()
                 {
-                    return false;
+                    return true;
                 }
 
                 if info.include_flac && !Path::new(&path.replace("webm", "flac")).exists() {
-                    return false;
+                    return true;
                 }
-
-                true
+                false
             })
             // update this to filter where all that is supposed to be encoded doesnt exist
             .collect()
