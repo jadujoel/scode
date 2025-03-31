@@ -40,6 +40,10 @@
     "package": {
       "type": "object",
       "properties": {
+        "include_flac": {
+          "type": "boolean",
+          "description": "Optional. Whether to create flac files for this package."
+        },
         "sourcedir": {
           "type": "string",
           "description": "Optional. Directory where the sounds for this package are located."

@@ -178,6 +178,7 @@ fn create_items(config: &Config) -> io::Result<Vec<Item>> {
                             use_cache,
                             &cache,
                             &NO_LANG.to_string(),
+                            package_config.include_flac.unwrap_or(false)
                         )
                     })
                     .collect(); // Collect into Vec<Result<Item, io::Error>>
@@ -210,6 +211,7 @@ fn create_items(config: &Config) -> io::Result<Vec<Item>> {
                             use_cache,
                             &cache,
                             &lang,
+                            package_config.include_flac.unwrap_or(false)
                         )
                     })
                     .collect(); // Collect into Vec<Result<Item, io::Error>>
@@ -307,6 +309,7 @@ fn create_item_for_file(
     use_cache: bool,
     cache: &info::Map,
     lang: &String,
+    include_flac: bool
 ) -> Option<Result<Item, io::Error>> {
     let file_buf = file.path();
     if !file_buf.is_file() {
@@ -398,6 +401,7 @@ fn create_item_for_file(
                             modification_date,
                             bitrate: target_bitrate,
                             output_path: output_path.to_string_lossy().into_owned(),
+                            include_flac
                         })
                     } else {
                         let message = format!(
@@ -545,7 +549,7 @@ fn encode_with_progress(
                     ffmpeg,
                     info,
                     include_mp4,
-                    include_flac,
+                    include_flac || info.include_flac,
                     include_webm,
                     include_opus,
                 )

@@ -25,6 +25,7 @@ pub struct Package {
     pub extends: Option<Vec<String>>,
     pub languages: Option<HashMap<String, String>>,
     pub sources: Option<HashMap<String, Source>>,
+    pub include_flac: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -150,7 +151,10 @@ impl fmt::Display for Config {
                 if let Some(ref sourcedir) = package.sourcedir {
                     writeln!(f, "    Source Directory: {sourcedir}")?;
                 }
-                if let Some(bitrate) = package.bitrate {
+                if let Some(ref include_flac) = package.include_flac {
+                    writeln!(f, "    Include Flac: {include_flac}")?;
+                }
+                if let Some(ref bitrate) = package.bitrate {
                     writeln!(f, "    Bitrate: {bitrate} kbps")?;
                 }
                 if let Some(ref extends) = package.extends {

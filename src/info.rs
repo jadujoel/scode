@@ -22,6 +22,7 @@ pub struct Item {
     pub target_channels: u16,
     pub sample_rate: u32,
     pub modification_date: String,
+    pub include_flac: bool
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
