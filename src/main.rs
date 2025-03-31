@@ -7,6 +7,8 @@
 #[macro_use]
 mod logging;
 
+mod test;
+
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     env,
@@ -137,12 +139,9 @@ fn create_items(config: &Config) -> io::Result<Vec<Item>> {
     let package_results: Vec<Result<Vec<Result<Item, io::Error>>, io::Error>> = package_names
         .par_iter()
         .map(|package_name| {
-            let package_config = match config.packages.get(package_name) {
-                Some(config) => config,
-                None => {
-                    let error_message = format!("Package {package_name} not found in config");
-                    return Err(io::Error::new(io::ErrorKind::NotFound, error_message));
-                }
+            let Some(package_config) = config.packages.get(package_name) else {
+                let error_message = format!("Package {package_name} not found in config");
+                return Err(io::Error::new(io::ErrorKind::NotFound, error_message));
             };
             let package_path = join_with_indir(package_name); // Assuming join_with_indir is defined elsewhere
             let package_sourcedir = package_config
@@ -504,6 +503,9 @@ fn encode_items(config: Config, items: &[Item]) -> io::Result<()> {
             &items_to_encode,
             &config.ffmpeg.unwrap_or("ffmpeg".to_string()),
             config.include_mp4.unwrap_or(false),
+            config.include_flac.unwrap_or(false),
+            config.include_webm.unwrap_or(true),
+            config.include_opus.unwrap_or(false),
         )
     });
     let errors = results
@@ -526,6 +528,9 @@ fn encode_with_progress(
     sounds: &Vec<&info::Item>,
     ffmpeg: &str,
     include_mp4: bool,
+    include_flac: bool,
+    include_webm: bool,
+    include_opus: bool,
 ) -> Vec<io::Result<()>> {
     let n = sounds.len();
     if n > 0 {
@@ -536,7 +541,14 @@ fn encode_with_progress(
             .map(|info| {
                 *ne.lock().unwrap() += 1;
                 logging::log_progress(start, *ne.lock().unwrap(), n);
-                encode_one_item(ffmpeg, info, include_mp4)
+                encode_one_item(
+                    ffmpeg,
+                    info,
+                    include_mp4,
+                    include_flac,
+                    include_webm,
+                    include_opus,
+                )
             })
             .collect();
         logging::log_progress(start, n, n);
@@ -546,7 +558,14 @@ fn encode_with_progress(
     }
 }
 
-fn encode_one_item(ffmpeg: &str, info: &info::Item, include_mp4: bool) -> io::Result<()> {
+fn encode_one_item(
+    ffmpeg: &str,
+    info: &info::Item,
+    include_mp4: bool,
+    include_flac: bool,
+    include_webm: bool,
+    include_opus: bool,
+) -> io::Result<()> {
     let infile = Path::new(&info.path);
     let infile = match infile.canonicalize() {
         Ok(path) => path,
@@ -600,61 +619,121 @@ fn encode_one_item(ffmpeg: &str, info: &info::Item, include_mp4: bool) -> io::Re
         command
     };
 
-    let opus_output_result = command.arg("-c:a").arg("libopus").arg(&outfile).output();
+    if include_webm {
+        let result = command.arg("-c:a").arg("libopus").arg(&outfile).output();
 
-    if let Err(e) = opus_output_result {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("ffmpeg execution failed when encoding webm file {outfile} with error {e}",),
-        ));
+        if let Err(e) = result {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("ffmpeg execution failed when encoding webm file {outfile} with error {e}",),
+            ));
+        }
+
+        let output = result.unwrap();
+        let status = output.status;
+        if !status.success() {
+            warn!("command: {command:?}");
+            warn!("webm_output: {output:?}");
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "ffmpeg execution failed when encoding webm file {outfile} with status {status}",
+                ),
+            ));
+        }
     }
 
-    let opus_output = opus_output_result.unwrap();
-    let status = opus_output.status;
+    if include_opus {
+        let outfile = outfile.clone().replace("webm", "opus");
+        debug!("Encoding {outfile}");
 
-    if !status.success() {
-        warn!("command: {command:?}");
-        warn!("opus_output: {opus_output:?}");
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!(
-                "ffmpeg execution failed when encoding webm file {outfile} with status {status}",
-            ),
-        ));
+        // write the flac file
+        let result = command
+            .arg("-c:a")
+            .arg("libopus")
+            .arg(outfile.clone())
+            .output();
+        if let Err(e) = result {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "ffmpeg execution failed when encoding flac file {} with error {e}",
+                    outfile.clone()
+                ),
+            ));
+        }
+        let status = result.unwrap().status;
+        if !status.success() {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "ffmpeg execution failed when encoding flac file {outfile} with status {status}",
+                ),
+            ));
+        }
     }
 
-    if !include_mp4 {
-        return Ok(());
+    if include_mp4 {
+        let outfile = outfile.clone().replace("webm", "mp4");
+        debug!("Encoding {outfile}");
+
+        // write the mp4 file
+        let result = command
+            .arg("-c:a")
+            .arg("aac")
+            .arg("-movflags")
+            .arg("+faststart")
+            .arg(outfile.clone())
+            .output();
+        if let Err(e) = result {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "ffmpeg execution failed when encoding mp4 file {} with error {e}",
+                    outfile.clone()
+                ),
+            ));
+        }
+        let status = result.unwrap().status;
+        if !status.success() {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "ffmpeg execution failed when encoding mp4 file {outfile} with status {status}",
+                ),
+            ));
+        }
     }
 
-    let outfile = outfile.clone().replace("webm", "mp4");
-    debug!("Encoding {outfile}");
+    if include_flac {
+        let outfile = outfile.clone().replace("webm", "flac");
+        debug!("Encoding {outfile}");
 
-    // write the mp4 file
-    let mp4_output_result = command
-        .arg("-c:a")
-        .arg("aac")
-        .arg("-movflags")
-        .arg("+faststart")
-        .arg(outfile.clone())
-        .output();
-    if let Err(e) = mp4_output_result {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!(
-                "ffmpeg execution failed when encoding mp4 file {} with error {e}",
-                outfile.clone()
-            ),
-        ));
+        // write the flac file
+        let result = command
+            .arg("-c:a")
+            .arg("flac")
+            .arg(outfile.clone())
+            .output();
+        if let Err(e) = result {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "ffmpeg execution failed when encoding flac file {} with error {e}",
+                    outfile.clone()
+                ),
+            ));
+        }
+        let status = result.unwrap().status;
+        if !status.success() {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "ffmpeg execution failed when encoding flac file {outfile} with status {status}",
+                ),
+            ));
+        }
     }
-    let status = mp4_output_result.unwrap().status;
-    if !status.success() {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!(
-                "ffmpeg execution failed when encoding mp4 file {outfile} with status {status}",
-            ),
-        ));
-    }
+
     Ok(())
 }

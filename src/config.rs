@@ -11,7 +11,10 @@ pub struct Config {
     pub loglevel: Option<String>,
     pub packages: HashMap<String, Package>,
     pub ffmpeg: Option<String>,
+    pub include_webm: Option<bool>,
+    pub include_opus: Option<bool>,
     pub include_mp4: Option<bool>,
+    pub include_flac: Option<bool>,
     pub use_cache: Option<bool>,
 }
 
@@ -51,7 +54,13 @@ pub struct Args {
     #[clap(long)]
     pub ffmpeg: Option<String>,
     #[clap(long)]
+    pub include_opus: Option<bool>,
+    #[clap(long)]
+    pub include_webm: Option<bool>,
+    #[clap(long)]
     pub include_mp4: Option<bool>,
+    #[clap(long)]
+    pub include_flac: Option<bool>,
     #[clap(long)]
     pub use_cache: Option<bool>,
 }
@@ -85,7 +94,10 @@ impl Config {
                 None => self.packages,
             },
             ffmpeg: args.ffmpeg.or(self.ffmpeg),
+            include_webm: args.include_webm.or(self.include_webm).or(Some(true)),
+            include_opus: args.include_opus.or(self.include_opus).or(Some(false)),
             include_mp4: args.include_mp4.or(self.include_mp4).or(Some(false)),
+            include_flac: args.include_flac.or(self.include_flac).or(Some(false)),
             use_cache: args.use_cache.or(self.use_cache),
         }
     }
@@ -101,8 +113,11 @@ impl std::default::Default for Config {
             loglevel: None,
             packages: HashMap::new(),
             ffmpeg: Some("ffmpeg".to_string()),
+            include_webm: Some(true),
+            include_opus: Some(false),
             include_mp4: Some(false),
             use_cache: Some(false),
+            include_flac: Some(false)
         }
     }
 }
@@ -205,7 +220,7 @@ pub fn strip_jsonc_comments(jsonc_input: &str, preserve_locations: bool) -> Stri
             // Check for block comment end
             } else if !is_in_string && last_char == Some('*') && cur_char == '/' {
                 if block_comment_depth > 0 {
-                    block_comment_depth -= 1;
+                    block_comment_depth = block_comment_depth.saturating_sub(1);
                 }
                 last_char = None;
                 if preserve_locations {
