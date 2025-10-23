@@ -10,10 +10,9 @@ mod logging;
 mod test;
 
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
+    collections::{HashMap},
     env,
     fs::{self, DirEntry},
-    hash::{Hash, Hasher},
     io,
     path::Path,
     process::Command,
