@@ -1,48 +1,62 @@
 name: publish
 
-## This will run when the the version is updated
-## It will then pull the artifacts from the artifacts branch
-## and then publish the package to npm
-
+## Runs when the version workflow completes or manually triggered
 on:
   workflow_dispatch:
   workflow_run:
     workflows: ["version"]
     types:
       - completed
+
+permissions:
+  contents: write
+  packages: write
+
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout main branch
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
           fetch-depth: 0
 
-      - name: VERSION
+      - name: Print version
         run: |
-          echo $(node -p "require('./package.json').version")
+          echo "Package version:"
+          node -p "require('./package.json').version"
 
-      - name: Fetch artifacts branch
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git fetch origin artifacts:artifacts
-          git checkout artifacts -- artifacts
-
-      - uses: actions/setup-node@v4
+      - name: Checkout artifacts branch
+        uses: actions/checkout@v4
         with:
+          token: ${{ secrets.PAT_TOKEN }}
+          ref: artifacts
+          path: artifacts
+
+      - name: Copy artifacts
+        run: |
+          echo "Copying build artifacts..."
+          cp -R artifacts/artifacts ./artifacts
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish
         run: |
-          echo "Checking if non-prerelease version"
-          if [[ $(node -p "require('./package.json').version") == *-* ]]; then
-            echo "Publishing Alpha"
+          VERSION=$(node -p "require('./package.json').version")
+
+          echo "Publishing version: $VERSION"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "Detected prerelease → publishing with tag 'alpha'"
             npm publish --tag alpha
           else
-            echo "Publishing Latest"
+            echo "Detected stable release → publishing with tag 'latest'"
             npm publish --access=public --tag latest
           fi
