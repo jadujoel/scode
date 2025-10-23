@@ -13,6 +13,10 @@ on:
       - 'src/**'
       - '.github/workflows/artifacts.yml'
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   macos_arm:
     runs-on: macos-latest
@@ -169,7 +173,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           ref: artifacts
 
       - uses: actions/download-artifact@v4
