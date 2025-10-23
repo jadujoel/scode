@@ -35,6 +35,8 @@ mod config;
 mod info;
 mod parser;
 
+use sha2::{Digest, Sha256};
+
 // Function to get the modification date as a String
 fn get_modification_date_string<TPath: AsRef<Path>>(path: TPath) -> std::io::Result<String> {
     let metadata = fs::metadata(path)?;
@@ -362,11 +364,16 @@ fn create_item_for_file(
                         let input_samples = wave.num_samples;
                         let input_channels = wave.format.num_channels;
 
-                        let mut hasher = DefaultHasher::new();
-                        buffer.hash(&mut hasher);
-                        let hash = hasher.finish().to_string();
-                        // convert to be maximum15 characters
-                        let hash = &hash[..15];
+                        let full = Sha256::digest(&buffer);
+                        let string = format!("{:x}", full);
+                        let hash = string[..10].to_string();
+
+                        // let mut hasher = DefaultHasher::new();
+                        // buffer.hash(&mut hasher);
+                        // let hash = hasher.finish().to_string();
+                        // // convert to be maximum15 characters
+                        // let hash = &hash[..15];
+
                         let (target_bitrate, target_channels) =
                             package_sources.get(&name).map_or_else(
                                 || {
