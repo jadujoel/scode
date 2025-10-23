@@ -29,6 +29,8 @@ jobs:
 
       - name: Fetch artifacts branch
         run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
           git fetch origin artifacts:artifacts
           git checkout artifacts -- artifacts
 
