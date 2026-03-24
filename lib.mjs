@@ -9,19 +9,19 @@ export function scode() {
             return "target/release/scode"
         }
         const platform = process.platform
-        const arm = process.arch.includes('arm')
+        const arch = process.arch
         if (platform === 'win32') {
-            return arm
+            return arch === 'arm64'
                 ? "artifacts/windows_arm/scode.exe"
                 : "artifacts/windows_x86/scode.exe"
         }
         if (platform === 'linux') {
-            return arm
-                ? "artifacts/ubuntu_arm/scode"
-                : "artifacts/ubuntu_x86/scode"
+            if (arch === 'arm64') return "artifacts/ubuntu_arm64/scode"
+            if (arch === 'arm') return "artifacts/ubuntu_arm/scode"
+            return "artifacts/ubuntu_x86/scode"
         }
         if (platform === 'darwin') {
-            return arm
+            return arch === 'arm64'
                 ? "artifacts/macos_arm/scode"
                 : "artifacts/macos_x86/scode"
         }
