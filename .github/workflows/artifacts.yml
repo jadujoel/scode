@@ -142,6 +142,29 @@ jobs:
           name: ubuntu_arm
           path: target/arm-unknown-linux-gnueabi/release/scode
 
+  ubuntu_arm64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: aarch64-unknown-linux-gnu
+          override: true
+      - name: Install aarch64 GCC
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target aarch64-unknown-linux-gnu
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu_arm64
+          path: target/aarch64-unknown-linux-gnu/release/scode
+
   ubuntu_x86:
     runs-on: ubuntu-22.04
     steps:
@@ -167,6 +190,7 @@ jobs:
         windows_x86,
         windows_arm,
         ubuntu_arm,
+        ubuntu_arm64,
         ubuntu_x86
     ]
     runs-on: ubuntu-22.04
