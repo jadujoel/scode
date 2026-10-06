@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     fs::{self, File},
     io::{self, BufWriter, Read, Write},
     path::Path,
@@ -40,7 +40,8 @@ pub struct NewItem {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Map {
-    pub value: HashMap<String, Item>,
+    // BTreeMap so the json cache is written in a stable order
+    pub value: BTreeMap<String, Item>,
 }
 
 impl Default for Map {
@@ -54,7 +55,7 @@ impl Map {
         #![allow(unused_must_use)] // if it already exists, it's fine
         fs::create_dir_all(".cache");
         Map {
-            value: HashMap::new(),
+            value: BTreeMap::new(),
         }
     }
 
@@ -74,7 +75,7 @@ impl Map {
         })
     }
 
-    pub fn from_map(map: HashMap<String, Item>) -> Self {
+    pub fn from_map(map: BTreeMap<String, Item>) -> Self {
         Map { value: map }
     }
 
@@ -82,7 +83,7 @@ impl Map {
         let mut file = File::open(".cache/info.bin")?;
         let mut encoded = Vec::new();
         file.read_to_end(&mut encoded)?;
-        let value: HashMap<String, Item> = bincode::deserialize(&encoded)
+        let value: BTreeMap<String, Item> = bincode::deserialize(&encoded)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
         Ok(Map::from_map(value))
     }
@@ -141,13 +142,14 @@ impl AtlasItem {
 }
 
 pub struct AtlasMap {
-    pub value: HashMap<String, Vec<AtlasItem>>,
+    // BTreeMap so packages are written in a stable order
+    pub value: BTreeMap<String, Vec<AtlasItem>>,
 }
 
 impl AtlasMap {
     pub fn new() -> Self {
         AtlasMap {
-            value: HashMap::new(),
+            value: BTreeMap::new(),
         }
     }
 
@@ -156,10 +158,16 @@ impl AtlasMap {
     }
 
     pub fn from_vec(vec: &[Item]) -> Self {
-        vec.iter().fold(AtlasMap::new(), |mut map, info| {
+        let mut map = vec.iter().fold(AtlasMap::new(), |mut map, info| {
             map.set(info.package.clone(), AtlasItem::from(info));
             map
-        })
+        });
+        // items come from directory listings whose order is not guaranteed,
+        // sort them so the atlas is the same on every build
+        for items in map.value.values_mut() {
+            items.sort_by(|a, b| (&a.lang, &a.name, &a.file).cmp(&(&b.lang, &b.name, &b.file)));
+        }
+        map
     }
 
     // pub fn save_json_v1(&self, dir: &str) -> io::Result<&Self> {

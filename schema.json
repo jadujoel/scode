@@ -27,6 +27,22 @@
       "enum": ["debug", "info", "warn", "error", "success", "silent"],
       "default": "info"
     },
+    "ffmpeg_flags": {
+      "type": "object",
+      "description": "Optional. Extra ffmpeg output flags per extension, added right before that output file, after the defaults (bitexact, metadata removal), which they can override. Either a whitespace separated string, or an array where each entry is one argument.",
+      "propertyNames": {
+        "enum": ["webm", "opus", "mp4", "flac"]
+      },
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" } }
+        ]
+      },
+      "examples": [
+        { "webm": "-application voip", "mp4": ["-cutoff", "18000"] }
+      ]
+    },
     "packages": {
       "type": "object",
       "additionalProperties": {

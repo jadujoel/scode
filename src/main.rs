@@ -22,7 +22,7 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use clap::Parser;
-use config::{Config, Source};
+use config::{Config, Flags, Source};
 use info::Item;
 use rayon::prelude::*;
 
@@ -548,6 +548,7 @@ fn encode_items(config: Config, items: &[Item]) -> io::Result<()> {
             config.include_flac.unwrap_or(false),
             config.include_webm.unwrap_or(true),
             config.include_opus.unwrap_or(false),
+            &config.ffmpeg_flags.unwrap_or_default(),
         )
     });
     let errors = results
@@ -574,6 +575,7 @@ fn encode_with_progress(
     include_flac: bool,
     include_webm: bool,
     include_opus: bool,
+    ffmpeg_flags: &HashMap<String, Flags>,
 ) -> Vec<io::Result<()>> {
     let n = sounds.len();
     if n > 0 {
@@ -591,6 +593,7 @@ fn encode_with_progress(
                     include_flac || info.include_flac,
                     include_webm,
                     include_opus,
+                    ffmpeg_flags,
                 )
             })
             .collect();
@@ -609,7 +612,23 @@ fn encode_one_item(
     include_flac: bool,
     include_webm: bool,
     include_opus: bool,
+    ffmpeg_flags: &HashMap<String, Flags>,
 ) -> io::Result<()> {
+    // output flags for a given extension, placed right before that output file.
+    // bitexact by default so outputs do not embed the ffmpeg version, timestamps or random ids,
+    // which makes the same input and settings always give the same bytes.
+    // user supplied flags come after so they can override it, e.g. "-fflags -bitexact".
+    let extra_flags = |ext: &str| {
+        let mut args: Vec<String> = ["-fflags", "+bitexact", "-flags:a", "+bitexact"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        if let Some(flags) = ffmpeg_flags.get(ext) {
+            args.extend(flags.to_args());
+        }
+        args
+    };
+
     let infile = Path::new(&info.path);
     let infile = match infile.canonicalize() {
         Ok(path) => path,
@@ -639,144 +658,79 @@ fn encode_one_item(
     // whether it's mono, stereo, or multi-channel audio.
     let bitrate = info.bitrate * u32::from(info.target_channels);
 
-    let mut command = Command::new(ffmpeg);
-    let command = command
-        .arg("-i")
-        .arg(infile)
-        .arg("-b:a")
-        .arg(bitrate.to_string() + "k")
-        .arg("-ar")
-        .arg("48000")
+    // output options in ffmpeg only apply to the next output file,
+    // so the shared options are repeated for each output.
+    let mut shared: Vec<String> = vec![
+        // only the first audio stream of the source
+        "-map".into(),
+        "0:a:0".into(),
+        "-b:a".into(),
+        format!("{bitrate}k"),
+        "-ar".into(),
+        "48000".into(),
         // remove any metadata
-        .arg("-map_metadata")
-        .arg("-1")
-        .arg("-y");
-    // opus codec
-    let command = if is_stereo_to_mono {
-        command
-            // mono mixdown with gain adjustment
-            .arg("-af")
-            .arg("pan=mono|c0=0.5*c0+0.5*c1")
-            .arg("-ac")
-            .arg("1")
-    } else {
-        command
-    };
+        "-map_metadata".into(),
+        "-1".into(),
+        // without this mp4 gets a dangling chapter track reference when metadata is removed
+        "-map_chapters".into(),
+        "-1".into(),
+        // remove the "encoder=Lavc libopus" stream tag, the output does not need it
+        "-metadata:s:a".into(),
+        "encoder=".into(),
+    ];
+    if is_stereo_to_mono {
+        // mono mixdown with gain adjustment
+        shared.extend(["-af", "pan=mono|c0=0.5*c0+0.5*c1", "-ac", "1"].map(String::from));
+    }
 
+    // (extension, codec specific options)
+    let mut outputs: Vec<(&str, Vec<&str>)> = Vec::new();
     if include_webm {
-        let result = command.arg("-c:a").arg("libopus").arg(&outfile).output();
-
-        if let Err(e) = result {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("ffmpeg execution failed when encoding webm file {outfile} with error {e}",),
-            ));
-        }
-
-        let output = result.unwrap();
-        let status = output.status;
-        if !status.success() {
-            warn!("command: {command:?}");
-            warn!("webm_output: {output:?}");
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "ffmpeg execution failed when encoding webm file {outfile} with status {status}",
-                ),
-            ));
-        }
+        outputs.push(("webm", vec!["-c:a", "libopus"]));
     }
-
     if include_opus {
-        let outfile = outfile.clone().replace("webm", "opus");
-        debug!("Encoding {outfile}");
-
-        // write the flac file
-        let result = command
-            .arg("-c:a")
-            .arg("libopus")
-            .arg(outfile.clone())
-            .output();
-        if let Err(e) = result {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "ffmpeg execution failed when encoding flac file {} with error {e}",
-                    outfile.clone()
-                ),
-            ));
-        }
-        let status = result.unwrap().status;
-        if !status.success() {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "ffmpeg execution failed when encoding flac file {outfile} with status {status}",
-                ),
-            ));
-        }
+        outputs.push(("opus", vec!["-c:a", "libopus"]));
     }
-
     if include_mp4 {
-        let outfile = outfile.clone().replace("webm", "mp4");
-        debug!("Encoding {outfile}");
-
-        // write the mp4 file
-        let result = command
-            .arg("-c:a")
-            .arg("aac")
-            .arg("-movflags")
-            .arg("+faststart")
-            .arg(outfile.clone())
-            .output();
-        if let Err(e) = result {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "ffmpeg execution failed when encoding mp4 file {} with error {e}",
-                    outfile.clone()
-                ),
-            ));
-        }
-        let status = result.unwrap().status;
-        if !status.success() {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "ffmpeg execution failed when encoding mp4 file {outfile} with status {status}",
-                ),
-            ));
-        }
+        outputs.push(("mp4", vec!["-c:a", "aac", "-movflags", "+faststart"]));
+    }
+    if include_flac {
+        outputs.push(("flac", vec!["-c:a", "flac"]));
+    }
+    if outputs.is_empty() {
+        return Ok(());
     }
 
-    if include_flac {
-        let outfile = outfile.clone().replace("webm", "flac");
+    // encode all outputs with a single ffmpeg run, decoding the input once
+    let mut command = Command::new(ffmpeg);
+    command.arg("-y").arg("-i").arg(infile);
+    let mut outfiles = Vec::new();
+    for (ext, codec) in outputs {
+        let outfile = outfile.replace("webm", ext);
         debug!("Encoding {outfile}");
+        command
+            .args(&shared)
+            .args(codec)
+            .args(extra_flags(ext))
+            .arg(&outfile);
+        outfiles.push(outfile);
+    }
+    let outfiles = outfiles.join(", ");
 
-        // write the flac file
-        let result = command
-            .arg("-c:a")
-            .arg("flac")
-            .arg(outfile.clone())
-            .output();
-        if let Err(e) = result {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "ffmpeg execution failed when encoding flac file {} with error {e}",
-                    outfile.clone()
-                ),
-            ));
-        }
-        let status = result.unwrap().status;
-        if !status.success() {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "ffmpeg execution failed when encoding flac file {outfile} with status {status}",
-                ),
-            ));
-        }
+    let output = command.output().map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::Other,
+            format!("ffmpeg execution failed when encoding {outfiles} with error {e}"),
+        )
+    })?;
+    let status = output.status;
+    if !status.success() {
+        warn!("command: {command:?}");
+        warn!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("ffmpeg execution failed when encoding {outfiles} with status {status}"),
+        ));
     }
 
     Ok(())

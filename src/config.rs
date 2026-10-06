@@ -16,6 +16,26 @@ pub struct Config {
     pub include_mp4: Option<bool>,
     pub include_flac: Option<bool>,
     pub use_cache: Option<bool>,
+    /// Extra ffmpeg output flags per extension, e.g. `{ "webm": "-fflags +bitexact" }`.
+    pub ffmpeg_flags: Option<HashMap<String, Flags>>,
+}
+
+/// Extra flags, either as one whitespace separated string
+/// or as an array where each entry is passed as one argument.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum Flags {
+    String(String),
+    Array(Vec<String>),
+}
+
+impl Flags {
+    pub fn to_args(&self) -> Vec<String> {
+        match self {
+            Flags::String(s) => s.split_whitespace().map(String::from).collect(),
+            Flags::Array(a) => a.clone(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -100,6 +120,7 @@ impl Config {
             include_mp4: args.include_mp4.or(self.include_mp4).or(Some(false)),
             include_flac: args.include_flac.or(self.include_flac).or(Some(false)),
             use_cache: args.use_cache.or(self.use_cache),
+            ffmpeg_flags: self.ffmpeg_flags,
         }
     }
 }
@@ -118,7 +139,8 @@ impl std::default::Default for Config {
             include_opus: Some(false),
             include_mp4: Some(false),
             use_cache: Some(false),
-            include_flac: Some(false)
+            include_flac: Some(false),
+            ffmpeg_flags: None,
         }
     }
 }
@@ -141,6 +163,12 @@ impl fmt::Display for Config {
         }
         if let Some(ref loglevel) = self.loglevel {
             writeln!(f, "Log Level: {loglevel}")?;
+        }
+        if let Some(ref ffmpeg_flags) = self.ffmpeg_flags {
+            writeln!(f, "FFmpeg Flags:")?;
+            for (ext, flags) in ffmpeg_flags {
+                writeln!(f, "  {ext}: {:?}", flags.to_args())?;
+            }
         }
         writeln!(f, "Packages:")?;
         if self.packages.is_empty() {

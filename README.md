@@ -171,6 +171,35 @@ To use different languages you need to add a `languages` object to the package.
 The `_` represents `no language`.
 Otherwise you mapp tha language name to the folder to look for the files in.
 
+### Extra ffmpeg flags
+
+Builds are deterministic: the same source and settings give byte identical output files and `.atlas.json`.
+To get that, every output is encoded with these flags by default:
+
+- `-fflags +bitexact -flags:a +bitexact`: no ffmpeg version, timestamps or random ids in the file.
+- `-map 0:a:0`: only the first audio stream of the source.
+- `-map_metadata -1 -map_chapters -1 -metadata:s:a encoder=`: no metadata, chapters or encoder tag.
+
+The output can still differ between ffmpeg versions, since the encoders themselves change, so pin the ffmpeg version if you build on several machines.
+
+To pass extra flags to ffmpeg for a specific output format, add an `ffmpeg_flags` object to the scodefig.jsonc file.
+The keys are the extensions `webm`, `opus`, `mp4` and `flac`.
+The value is either a whitespace separated string, or an array where each entry is passed as one argument (use the array form when an argument contains spaces).
+The flags are placed right before the output file, so they apply to that output only.
+
+```jsonc
+{
+  "ffmpeg_flags": {
+    "webm": "-application voip",
+    "mp4": ["-cutoff", "18000"]
+  }
+}
+```
+
+The flags come after the defaults, so you can override them, e.g. `"webm": "-fflags -bitexact -flags:a -bitexact"` turns bitexact off for webm.
+
+Existing output files are not re-encoded when the flags change, delete them from the output directory to re-encode.
+
 ## .atlas.json
 
 The generated structure is as below. Where name is the original filename without the extension.
