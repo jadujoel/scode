@@ -22,7 +22,7 @@ jobs:
     runs-on: macos-latest
     environment: scode
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
@@ -46,7 +46,7 @@ jobs:
         P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
         TEAM_ID: ${{ secrets.TEAM_ID }}
         YOUR_NAME: ${{ secrets.YOUR_NAME }}
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: macos_arm
         path: target/aarch64-apple-darwin/release/scode
@@ -55,7 +55,7 @@ jobs:
     runs-on: macos-latest
     environment: scode
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
@@ -78,7 +78,7 @@ jobs:
         P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
         TEAM_ID: ${{ secrets.TEAM_ID }}
         YOUR_NAME: ${{ secrets.YOUR_NAME }}
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: macos_x86
         path: target/release/scode
@@ -86,7 +86,7 @@ jobs:
   windows_x86:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
@@ -97,7 +97,7 @@ jobs:
       with:
         command: build
         args: --release --target x86_64-pc-windows-msvc
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: windows_x86
         path: target/x86_64-pc-windows-msvc/release/scode.exe
@@ -105,7 +105,7 @@ jobs:
   windows_arm:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
@@ -116,7 +116,7 @@ jobs:
       with:
         command: build
         args: --release --target aarch64-pc-windows-msvc
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: windows_arm
         path: target/aarch64-pc-windows-msvc/release/scode.exe
@@ -124,7 +124,7 @@ jobs:
   ubuntu_arm:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -137,7 +137,7 @@ jobs:
         with:
           command: build
           args: --release --target arm-unknown-linux-gnueabi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ubuntu_arm
           path: target/arm-unknown-linux-gnueabi/release/scode
@@ -145,7 +145,7 @@ jobs:
   ubuntu_arm64:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -160,7 +160,7 @@ jobs:
           args: --release --target aarch64-unknown-linux-gnu
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ubuntu_arm64
           path: target/aarch64-unknown-linux-gnu/release/scode
@@ -168,7 +168,7 @@ jobs:
   ubuntu_x86:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -178,7 +178,7 @@ jobs:
         with:
           command: build
           args: --release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ubuntu_x86
           path: target/release/scode
@@ -195,12 +195,12 @@ jobs:
     ]
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: artifacts
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts/
 
