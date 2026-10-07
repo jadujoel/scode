@@ -52,5 +52,3 @@ jobs:
             echo "Publishing Latest"
             npm publish --access=public --tag latest
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
