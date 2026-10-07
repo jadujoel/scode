@@ -7,6 +7,7 @@ name: publish
 permissions:
   contents: write
   packages: write
+  id-token: write # npm trusted publishing (OIDC) and provenance
 
 on:
   workflow_dispatch:
@@ -16,6 +17,8 @@ on:
       - completed
 jobs:
   build:
+    # Only publish when the version workflow succeeded, or when started manually
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -35,6 +38,9 @@ jobs:
           git checkout artifacts -- artifacts
 
       - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
 
       - name: Publish
         run: |
@@ -46,3 +52,5 @@ jobs:
             echo "Publishing Latest"
             npm publish --access=public --tag latest
           fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -240,3 +240,27 @@ Above would look for the config file in the `sounds-repo` directory and encode t
 ```bash
 cargo run --release -- --indir=../sounds --loglevel=perf --packages=common --packages=localisationprototype --use-cache=false
 ```
+
+### Publishing a new version
+
+Releases are built and published by GitHub Actions. There is no single deploy button; the flow is:
+
+1. **Push to `master`.** If anything in `src/**` changed, the `artifacts` workflow builds and signs the binaries for all platforms and commits them to the `artifacts` branch.
+2. **Wait for `artifacts` to finish.** `publish` packages whatever is on the `artifacts` branch, so starting a release too early ships the old binaries. If you changed only JS files, `artifacts` does not run, and that is fine.
+3. **Run the `version` workflow** (Actions → `version` → Run workflow) and pick a release type:
+   - `alpha` (default): `1.9.6` → `1.9.7-alpha.0`, published under the `alpha` npm tag
+   - `patch`, `minor`, `major`: published under the `latest` npm tag
+
+   This runs `npm version` and pushes the bump commit and tag to `master`.
+4. **`publish` runs automatically** when `version` succeeds. It copies the binaries from the `artifacts` branch and runs `npm publish`.
+
+If a publish fails, fix the cause and run `publish` manually (Actions → `publish` → Run workflow). It publishes the version currently in `package.json` on `master`, so do not run `version` again.
+
+#### npm authentication
+
+`publish` supports two ways to authenticate with npm:
+
+- **Trusted publishing (recommended):** on npmjs.com, open the package settings for `@jadujoel/scode` and add a trusted publisher for this GitHub repository with the workflow file `publish.yml`. No token is needed.
+- **Token:** set the `NPM_TOKEN` repository secret to an npm automation or granular access token with publish rights for `@jadujoel/scode`.
+
+A `404 Not Found - PUT https://registry.npmjs.org/@jadujoel%2fscode` error from `npm publish` means the request was not authenticated. Check both options above.
