@@ -18,6 +18,28 @@ pub struct Config {
     pub use_cache: Option<bool>,
     /// Extra ffmpeg output flags per extension, e.g. `{ "webm": "-fflags +bitexact" }`.
     pub ffmpeg_flags: Option<HashMap<String, Flags>>,
+    /// Hash used in the output file names. Default is `siphash`.
+    pub hash: Option<HashAlgorithm>,
+}
+
+/// Hash used to name the encoded files.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
+#[serde(rename_all = "lowercase")]
+pub enum HashAlgorithm {
+    /// First 15 decimal digits of the siphash, the original naming.
+    #[default]
+    Siphash,
+    /// First 10 hex characters of the sha256, git lfs compatible.
+    Sha256,
+}
+
+impl fmt::Display for HashAlgorithm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            HashAlgorithm::Sha256 => write!(f, "sha256"),
+            HashAlgorithm::Siphash => write!(f, "siphash"),
+        }
+    }
 }
 
 /// Extra flags, either as one whitespace separated string
@@ -84,6 +106,8 @@ pub struct Args {
     pub include_flac: Option<bool>,
     #[clap(long)]
     pub use_cache: Option<bool>,
+    #[clap(long, value_enum)]
+    pub hash: Option<HashAlgorithm>,
 }
 
 impl Config {
@@ -121,6 +145,7 @@ impl Config {
             include_flac: args.include_flac.or(self.include_flac).or(Some(false)),
             use_cache: args.use_cache.or(self.use_cache),
             ffmpeg_flags: self.ffmpeg_flags,
+            hash: args.hash.or(self.hash).or(Some(HashAlgorithm::default())),
         }
     }
 }
@@ -141,6 +166,7 @@ impl std::default::Default for Config {
             use_cache: Some(false),
             include_flac: Some(false),
             ffmpeg_flags: None,
+            hash: Some(HashAlgorithm::default()),
         }
     }
 }
@@ -163,6 +189,9 @@ impl fmt::Display for Config {
         }
         if let Some(ref loglevel) = self.loglevel {
             writeln!(f, "Log Level: {loglevel}")?;
+        }
+        if let Some(hash) = self.hash {
+            writeln!(f, "Hash: {hash}")?;
         }
         if let Some(ref ffmpeg_flags) = self.ffmpeg_flags {
             writeln!(f, "FFmpeg Flags:")?;

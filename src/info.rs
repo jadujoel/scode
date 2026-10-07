@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 
-use crate::wave;
+use crate::{config::HashAlgorithm, wave};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Item {
@@ -22,7 +22,8 @@ pub struct Item {
     pub target_channels: u16,
     pub sample_rate: u32,
     pub modification_date: String,
-    pub include_flac: bool
+    pub include_flac: bool,
+    pub hash: HashAlgorithm,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

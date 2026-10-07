@@ -22,7 +22,7 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use clap::Parser;
-use config::{Config, Flags, Source};
+use config::{Config, Flags, HashAlgorithm, Source};
 use info::Item;
 use rayon::prelude::*;
 
@@ -35,6 +35,27 @@ mod info;
 mod parser;
 
 use sha2::{Digest, Sha256};
+use siphasher::sip::SipHasher13;
+use std::hash::{Hash, Hasher};
+
+/// Hash of the file content, used in the output file name.
+fn hash_buffer(buffer: &Vec<u8>, algorithm: HashAlgorithm) -> String {
+    match algorithm {
+        HashAlgorithm::Sha256 => {
+            let full = Sha256::digest(buffer);
+            format!("{full:x}")[..10].to_string()
+        }
+        HashAlgorithm::Siphash => {
+            // Same as the std DefaultHasher (SipHash-1-3 with zero keys) used before,
+            // but from a crate so the result is stable across rust versions.
+            let mut hasher = SipHasher13::new();
+            buffer.hash(&mut hasher);
+            let hash = hasher.finish().to_string();
+            // maximum 15 characters
+            hash.chars().take(15).collect()
+        }
+    }
+}
 
 // Function to get the modification date as a String
 fn get_modification_date_string<TPath: AsRef<Path>>(path: TPath) -> std::io::Result<String> {
@@ -333,12 +354,14 @@ fn create_item_for_file(
         }
     };
 
+    let hash_algorithm = config.hash.unwrap_or_default();
+
     // should check the --skip-cache flag
     if use_cache {
         let cached = cache.get(&file_path_str);
         if let Some(cached) = cached {
             debug!("Cached: {file_path_str}");
-            if modification_date == cached.modification_date {
+            if modification_date == cached.modification_date && cached.hash == hash_algorithm {
                 return Some(Ok(cached.clone()));
             }
         }
@@ -363,15 +386,7 @@ fn create_item_for_file(
                         let input_samples = wave.num_samples;
                         let input_channels = wave.format.num_channels;
 
-                        let full = Sha256::digest(&buffer);
-                        let string = format!("{:x}", full);
-                        let hash = string[..10].to_string();
-
-                        // let mut hasher = DefaultHasher::new();
-                        // buffer.hash(&mut hasher);
-                        // let hash = hasher.finish().to_string();
-                        // // convert to be maximum15 characters
-                        // let hash = &hash[..15];
+                        let hash = hash_buffer(&buffer, hash_algorithm);
 
                         let (target_bitrate, target_channels) =
                             package_sources.get(&name).map_or_else(
@@ -409,6 +424,7 @@ fn create_item_for_file(
                             bitrate: target_bitrate,
                             output_path: output_path.to_string_lossy().into_owned(),
                             include_flac,
+                            hash: hash_algorithm,
                         })
                     } else {
                         let message = format!(

@@ -105,7 +105,12 @@ Now the encoder will process all the wav files it found output the files in the 
 It will also create a .atlas.json file with info about the files.
 
 - structure: `<bitrate>k.<channels>ch.<hash>.webm|mp4`
-- example: `96kb.1ch.394510008784912090.webm`.
+- example: `96kb.1ch.394510008784912.webm`.
+
+The hash is set with `"hash"` in scodefig.jsonc or with `--hash`:
+
+- `"siphash"` (default): first 15 decimal digits of the siphash of the file, e.g. `96kb.1ch.394510008784912.webm`.
+- `"sha256"`: first 10 hex characters of the sha256 of the file, git lfs compatible, e.g. `96kb.1ch.9fe3bc1b7d.webm`.
 
 ### Changing bitrates
 

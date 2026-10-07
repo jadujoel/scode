@@ -27,6 +27,12 @@
       "enum": ["debug", "info", "warn", "error", "success", "silent"],
       "default": "info"
     },
+    "hash": {
+      "type": "string",
+      "description": "Hash used in the output file names. 'siphash' (default) uses the first 15 decimal digits of the siphash of the file, the original naming. 'sha256' uses the first 10 hex characters of the sha256 of the file, which is git lfs compatible.",
+      "enum": ["siphash", "sha256"],
+      "default": "siphash"
+    },
     "ffmpeg_flags": {
       "type": "object",
       "description": "Optional. Extra ffmpeg output flags per extension, added right before that output file, after the defaults (bitexact, metadata removal), which they can override. Either a whitespace separated string, or an array where each entry is one argument.",
