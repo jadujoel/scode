@@ -3,7 +3,16 @@
   "version": "1.9.7",
   "description": "encode sound files",
   "main": "lib.mjs",
-  "bin": "index.mjs",
+  "bin": {
+    "scode": "index.mjs"
+  },
+  "repository": {
+    "url": "git+https://github.com/jadujoel/scode.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "start": "node index.mjs",
     "build": "echo build",
