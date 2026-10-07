@@ -47,8 +47,8 @@ jobs:
           echo "Checking if non-prerelease version"
           if [[ $(node -p "require('./package.json').version") == *-* ]]; then
             echo "Publishing Alpha"
-            npm publish --tag alpha
+            npm publish --tag alpha --provenance
           else
             echo "Publishing Latest"
-            npm publish --access=public --tag latest
+            npm publish --access public --tag latest --provenance
           fi
