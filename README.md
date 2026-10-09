@@ -169,6 +169,26 @@ Example config:
 - bitrate `32` and channels 1 will result in a file with a bitrate of `32kbits` and `1` channel.
 - bitrate `32` and channels `2` will result in a file with a total bitrate of `64kbits`.
 
+### Mp4 for some files only
+
+`--include-mp4=true` makes an mp4 file for every source. To make mp4 files for some sources only, set `include_mp4` on the package or on a source. A source setting overrides the package setting.
+
+```jsonc
+{
+    "packages": {
+        "template": {
+            "sources": {
+                "music_loop": {
+                    "include_mp4": true
+                }
+            }
+        }
+    }
+}
+```
+
+Here only `music_loop` gets an mp4 file next to its webm file.
+
 ### Using languages
 
 To use different languages you update the scodefig.jsonc file.

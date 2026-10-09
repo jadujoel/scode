@@ -68,12 +68,16 @@ pub struct Package {
     pub languages: Option<HashMap<String, String>>,
     pub sources: Option<HashMap<String, Source>>,
     pub include_flac: Option<bool>,
+    /// Whether to create mp4 files for this package. A source can override it.
+    pub include_mp4: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Source {
     pub bitrate: Option<u32>,
     pub channels: Option<u16>,
+    /// Whether to create an mp4 file for this source, overriding the package setting.
+    pub include_mp4: Option<bool>,
 }
 
 #[derive(Parser, Debug)]

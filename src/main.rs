@@ -57,6 +57,14 @@ fn hash_buffer(buffer: &Vec<u8>, algorithm: HashAlgorithm) -> String {
     }
 }
 
+/// Whether a source gets an mp4 file: the source setting, else the package setting, else no.
+fn source_includes_mp4(source: Option<&Source>, package: &config::Package) -> bool {
+    source
+        .and_then(|source| source.include_mp4)
+        .or(package.include_mp4)
+        .unwrap_or(false)
+}
+
 // Function to get the modification date as a String
 fn get_modification_date_string<TPath: AsRef<Path>>(path: TPath) -> std::io::Result<String> {
     let metadata = fs::metadata(path)?;
@@ -355,6 +363,8 @@ fn create_item_for_file(
     };
 
     let hash_algorithm = config.hash.unwrap_or_default();
+    let name = file.file_name().to_string_lossy().replace(".wav", "");
+    let include_mp4 = source_includes_mp4(package_sources.get(&name), package_config);
 
     // should check the --skip-cache flag
     if use_cache {
@@ -362,12 +372,16 @@ fn create_item_for_file(
         if let Some(cached) = cached {
             debug!("Cached: {file_path_str}");
             if modification_date == cached.modification_date && cached.hash == hash_algorithm {
-                return Some(Ok(cached.clone()));
+                // the output formats come from the current config, not from the cache,
+                // so turning a format on or off takes effect without a change to the wav
+                return Some(Ok(Item {
+                    include_flac,
+                    include_mp4,
+                    ..cached.clone()
+                }));
             }
         }
     }
-
-    let name = file.file_name().to_string_lossy().replace(".wav", "");
 
     // Wrap fs::read and wave processing in a Result::map_err to convert any error to io::Error
     let result = fs::read(file_path)
@@ -424,6 +438,7 @@ fn create_item_for_file(
                             bitrate: target_bitrate,
                             output_path: output_path.to_string_lossy().into_owned(),
                             include_flac,
+                            include_mp4,
                             hash: hash_algorithm,
                         })
                     } else {
@@ -514,7 +529,7 @@ fn encode_items(config: Config, items: &[Item]) -> io::Result<()> {
                     return true;
                 }
 
-                if config.include_mp4.unwrap_or(false)
+                if (config.include_mp4.unwrap_or(false) || info.include_mp4)
                     && !Path::new(&path.replace("webm", "mp4")).exists()
                 {
                     return true;
@@ -605,7 +620,7 @@ fn encode_with_progress(
                 encode_one_item(
                     ffmpeg,
                     info,
-                    include_mp4,
+                    include_mp4 || info.include_mp4,
                     include_flac || info.include_flac,
                     include_webm,
                     include_opus,

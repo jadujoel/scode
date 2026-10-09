@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 
-use crate::{config::HashAlgorithm, wave};
+use crate::config::HashAlgorithm;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Item {
@@ -23,20 +23,8 @@ pub struct Item {
     pub sample_rate: u32,
     pub modification_date: String,
     pub include_flac: bool,
+    pub include_mp4: bool,
     pub hash: HashAlgorithm,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct NewItem {
-    pub path: String,
-    pub name: String,
-    pub outfile: String,
-    pub package: String,
-    pub lang: String,
-    pub output_path: String,
-    pub bitrate: u32,
-    pub modification_date: String,
-    pub wave_data: wave::Data,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -96,14 +84,6 @@ impl Map {
         file.write_all(&encoded)?;
         Ok(self)
     }
-
-    // pub fn from_cache_json() -> io::Result<Self> {
-    //     let file = File::open(".cache/info.json")?;
-    //     let value: HashMap<String, Item> = serde_json::from_reader(file)
-    //         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-    //     Ok(Map::from_map(value))
-    // }
-
     pub fn save_cache_json(&self) -> io::Result<&Self> {
         let dir = Path::new(".cache");
         std::fs::create_dir_all(dir)?;
@@ -171,17 +151,6 @@ impl AtlasMap {
         map
     }
 
-    // pub fn save_json_v1(&self, dir: &str) -> io::Result<&Self> {
-    //     let dirp = Path::new(dir);
-    //     if !dirp.exists() {
-    //         fs::create_dir_all(dirp)?;
-    //     }
-    //     let file = File::create(dirp.join(".atlas.json"))?;
-    //     serde_json::to_writer_pretty(file, &self.value)
-    //         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-    //     Ok(self)
-    // }
-
     pub fn save_json_v2(&self, dir: &str) -> io::Result<&Self> {
         let dirp = Path::new(dir);
         if !dirp.exists() {
@@ -216,126 +185,3 @@ impl AtlasMap {
         Ok(self)
     }
 }
-
-// fn save_atlas(items: &[Item], output_file: &str) -> io::Result<()> {
-//     let file = File::create(output_file)?;
-//     let mut writer = BufWriter::new(file);
-//     let mut packages: HashMap<String, Vec<&AtlasItem>> = HashMap::new();
-//     for info in items {
-//         packages
-//             .entry(info.package.clone())
-//             .or_default()
-//             .push(info);
-//     }
-
-//     writeln!(writer, "{{")?;
-//     for (index, package) in packages.iter().enumerate() {
-//         write!(writer, "\"{}\": [", package.0)?;
-//         for (index, info) in package.1.iter().enumerate() {
-//             if info.lang == "none" {
-//                 // If lang is "none", skip the lang field
-//                 write!(
-//                     writer,
-//                     "\n  [\"{}\", \"{}\", {}]",
-//                     info.name,
-//                     info.outfile.replace(".webm", ""),
-//                     info.num_samples,
-//                 )?;
-//             } else {
-//                 // If lang is not "none", include it in the JSON
-//                 write!(
-//                     writer,
-//                     "\n  [\"{}\", \"{}\", {}, \"{}\"]",
-//                     info.name,
-//                     info.outfile.replace(".webm", ""),
-//                     info.num_samples,
-//                     info.lang,
-//                 )?;
-//             }
-
-//             // Comma between items, not after the last item
-//             if index < package.1.len() - 1 {
-//                 write!(writer, ", ")?;
-//             } else {
-//                 write!(writer, "\n]")?;
-//             }
-//         }
-//         // Handle commas between objects
-//         writeln!(
-//             writer,
-//             "{}",
-//             if index < packages.len() - 1 { "," } else { "" }
-//         )?;
-//     }
-//     writeln!(writer, "}}")?;
-
-//     Ok(())
-// }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use std::fs;
-
-//     #[test]
-//     fn test_map() {
-//         let mut map = Map::new();
-//         let info = Item {
-//             path: "path".to_string(),
-//             name: "name".to_string(),
-//             outfile: "outfile".to_string(),
-//             package: "package".to_string(),
-//             lang: "lang".to_string(),
-//             output_path: "output_path".to_string(),
-//             bitrate: 128,
-//             num_samples: 1000,
-//             sample_rate: 44100,
-//             modification_date: "2021-01-01".to_string(),
-//         };
-//         map.set("path".to_string(), info.clone());
-//         println!("{:?}", map.value);
-//         // assert_eq!(map.get("path"), Some(&info));
-//     }
-
-//     #[test]
-//     fn test_map_from_vector() {
-//         let info = Item {
-//             path: "path".to_string(),
-//             name: "name".to_string(),
-//             outfile: "outfile".to_string(),
-//             package: "package".to_string(),
-//             lang: "lang".to_string(),
-//             output_path: "output_path".to_string(),
-//             bitrate: 128,
-//             num_samples: 1000,
-//             sample_rate: 44100,
-//             modification_date: "2021-01-01".to_string(),
-//         };
-//         let vec = vec![info.clone()];
-//         let map = Map::from_vec(vec);
-//         println!("{:?}", map.value);
-//         // assert_eq!(map.get("path"), Some(&info));
-//     }
-
-//     #[test]
-//     fn test_write_to_json() {
-//         let mut map = Map::new();
-//         let info = Item {
-//             path: "path".to_string(),
-//             name: "name".to_string(),
-//             outfile: "outfile".to_string(),
-//             package: "package".to_string(),
-//             lang: "lang".to_string(),
-//             output_path: "output_path".to_string(),
-//             bitrate: 128,
-//             num_samples: 1000,
-//             sample_rate: 44100,
-//             modification_date: "2021-01-01".to_string(),
-//         };
-//         map.set("path".to_string(), info.clone());
-//         map.save_cache_json().unwrap();
-//         let file = fs::read_to_string(".cache/info.json").unwrap();
-//         let expected = serde_json::to_string_pretty(&map.value).unwrap();
-//         assert_eq!(file, expected);
-//     }
-// }

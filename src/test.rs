@@ -1,13 +1,5 @@
 
 #[test]
-fn te() {
-    let mut x = 1_i32;
-    println!("{x}");
-    x.saturating_sub(1);
-    println!("{x}");
-}
-
-#[test]
 fn siphash_matches_old_default_hasher_naming() {
     use crate::{config::HashAlgorithm, hash_buffer};
     use std::{
@@ -28,4 +20,31 @@ fn sha256_naming() {
     use crate::{config::HashAlgorithm, hash_buffer};
     let hash = hash_buffer(&b"hello".to_vec(), HashAlgorithm::Sha256);
     assert_eq!(hash, "2cf24dba5f");
+}
+
+#[test]
+fn mp4_source_setting_overrides_package_setting() {
+    use crate::{
+        config::{Package, Source},
+        source_includes_mp4,
+    };
+    let package = |include_mp4| Package {
+        sourcedir: None,
+        bitrate: None,
+        extends: None,
+        languages: None,
+        sources: None,
+        include_flac: None,
+        include_mp4,
+    };
+    let source = |include_mp4| Source {
+        bitrate: None,
+        channels: None,
+        include_mp4,
+    };
+    assert!(!source_includes_mp4(None, &package(None)));
+    assert!(source_includes_mp4(None, &package(Some(true))));
+    assert!(source_includes_mp4(Some(&source(Some(true))), &package(None)));
+    assert!(!source_includes_mp4(Some(&source(Some(false))), &package(Some(true))));
+    assert!(source_includes_mp4(Some(&source(None)), &package(Some(true))));
 }

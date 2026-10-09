@@ -66,6 +66,10 @@
           "type": "boolean",
           "description": "Optional. Whether to create flac files for this package."
         },
+        "include_mp4": {
+          "type": "boolean",
+          "description": "Optional. Whether to create mp4 files for this package. A source can override it."
+        },
         "sourcedir": {
           "type": "string",
           "description": "Optional. Directory where the sounds for this package are located."
@@ -123,6 +127,10 @@
         "channels": {
           "type": "integer",
           "description": "Optional. Number of audio channels for this source, default is same number of channels as the source."
+        },
+        "include_mp4": {
+          "type": "boolean",
+          "description": "Optional. Whether to create an mp4 file for this source, overriding the package include_mp4."
         }
       },
       "additionalProperties": false
